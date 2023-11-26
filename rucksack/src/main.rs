@@ -32,19 +32,16 @@ fn first_half(text: &str) {
 fn second_half(text: &str) {
     let alphabet = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-    let mut total_priority = 0;
-    for mut line_group in &text.lines().chunks(3) {
-        let first = line_group.next().expect("Fixed input format");
-        let second = line_group.next().expect("Fixed input format");
-        let third = line_group.next().expect("Fixed input format");
-
-        total_priority += first
-            .chars()
-            .filter(|c| second.contains(*c) && third.contains(*c))
-            .map(|c| alphabet.find(c))
-            .next()
-            .expect("Exists as per exercise rules")
-            .expect("The letter is in the alphabet, per the exercise rules")
-    }
+    let total_priority: usize = text.lines().chunks(3).into_iter().map(|mut chunk| {
+        let first = chunk.next().expect("Fixed input format");
+        let second = chunk.next().expect("Fixed input format");
+        let third = chunk.next().expect("Fixed input format");
+        first.chars()
+             .filter(|c| second.contains(*c) && third.contains(*c))
+             .map(|c| alphabet.find(c))
+             .next()
+             .expect("Exists as per exercise rules")
+             .expect("The letter is in the alphabet, per the exercise rules")
+    }).sum::<usize>();
     println!("new Prio: {total_priority}");
 }
