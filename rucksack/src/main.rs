@@ -1,9 +1,12 @@
+use itertools::Itertools;
 use std::fs;
 
 // Fairly ugly
 fn main() {
-    let contents = fs::read_to_string("data.txt").expect("The file is static and is always parsable");
+    let contents =
+        fs::read_to_string("data.txt").expect("The file is static and is always parsable");
     first_half(&contents);
+    second_half(&contents);
 }
 
 fn first_half(text: &str) {
@@ -29,12 +32,19 @@ fn first_half(text: &str) {
 fn second_half(text: &str) {
     let alphabet = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-    for line_group in text.split("\n\n") {
-        let mut lines = line_group.lines();
-        let first  = lines.next().expect("Fixed input format");
-        let second = lines.next().expect("Fixed input format");
-        let third  = lines.next().expect("Fixed input format");
+    let mut total_priority = 0;
+    for mut line_group in &text.lines().chunks(3) {
+        let first = line_group.next().expect("Fixed input format");
+        let second = line_group.next().expect("Fixed input format");
+        let third = line_group.next().expect("Fixed input format");
 
-        first.chars().filter(|c| second.contains(*c) && third.contains(*c)).next().expect("Exists as per exercise rules");
+        total_priority += first
+            .chars()
+            .filter(|c| second.contains(*c) && third.contains(*c))
+            .map(|c| alphabet.find(c))
+            .next()
+            .expect("Exists as per exercise rules")
+            .expect("The letter is in the alphabet, per the exercise rules")
     }
+    println!("new Prio: {total_priority}");
 }
