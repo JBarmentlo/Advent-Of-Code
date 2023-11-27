@@ -1,4 +1,11 @@
-use std::{fs, ops::Range};
+use std::fs;
+use std::ops::RangeInclusive;
+
+use cleanup::{
+    to_range,
+    overlap,
+    included
+};
 
 fn main() {
     let contents = fs::read_to_string("data.txt").expect("The file is static and is always parsable");
@@ -6,7 +13,7 @@ fn main() {
     second_half(&contents);
 }
 
-fn compute(contents: &str, criterium: fn(&Range<u32>, &Range<u32>) -> bool) {
+fn compute(contents: &str, criterium: fn(&RangeInclusive<u32>, &RangeInclusive<u32>) -> bool) {
     let total = contents.lines().filter(|line| {
         let mut pairs = line.split(',');
         let first  = to_range(pairs.next().expect("Exists"));
