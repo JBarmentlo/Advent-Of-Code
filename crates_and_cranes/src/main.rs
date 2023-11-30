@@ -1,14 +1,30 @@
-use std::{fs, str::Lines};
+use std::{fs, fmt};
+
+use itertools::Itertools;
 
 #[derive(Debug)]
 struct Crate {
     pub name: char
 }
 
+impl fmt::Display for Crate {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.name)
+    }
+}
+
 
 #[derive(Debug)]
 struct Pile {
     crates: Vec<Crate>
+}
+
+impl fmt::Display for Pile {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // self.crates.
+        let str: String = self.crates.iter().map(|c| c.name).collect();
+        write!(f, "{str}", )
+    }
 }
 
 impl Pile {
@@ -63,54 +79,67 @@ impl Port {
             None => panic!("Pushing to a pile that doesnt exist")
         }
     }
+
+    fn top_of_piles(&self) -> String {
+        self.piles.iter().filter(|p| p.crates.len() > 0).map(|p| p.crates.last().expect("filtered the empty ones").name).collect()
+    }
 }
 
+impl fmt::Display for Port {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // self.crates.
+        let str: String = self.piles.iter().enumerate().map(|(i, p)| format!("{}: {}", i, p)).join("\n");
+        write!(f, "{str}")
+    }
+}
 
 
 
 fn main() {
-    let contents = fs::read_to_string("test_data.txt").expect("The file is static and is always parsable");
 
-    let n_stacks   = get_number_of_stacks(&contents);
-    let mut port   = Port::with_capacity(n_stacks); 
-    dbg!(&port);
+    let contents = fs::read_to_string("data.txt").expect("The file is static and is always parsable");
 
-    let crates     = get_crates_str(&contents);
+    let mut port   = Port::with_capacity(get_number_of_stacks(&contents)); 
 
-
-    for line in crates.lines() {
-        println!("{line}");
+    for line in get_crates_str(&contents).iter().rev() {
         for (i, l) in line.replace("    ", "[0] ").trim().split_whitespace().enumerate() {
             let c = l.chars().nth(1).expect("Fixed size");
-            let krat = Crate { name: c };
-            port.add(krat, i);
+            port.add(Crate { name: c }, i);
         }
+        println!("{port}\n");
+    }
+
+    println!("{port}");
+
+    for line in get_operations_str(&contents).lines() {
+        let mut words = line.split_whitespace();
+        words.next();
+        let number: usize = words.next().expect("fixed format input").parse().expect("fixed format input");
+
+        words.next();
+        let src: usize = words.next().expect("fixed format input").parse().expect("fixed format input");
+
+        words.next();
+        let dest: usize = words.next().expect("fixed format input").parse().expect("fixed format input");
+
+        println!("{line}");
+        for _ in 0..number {
+            let krat = port.pop(src - 1).expect("Popping a non existant crate");
+            port.add(krat, dest - 1);
+        }
+        // dbg!(&port);
+        println!("{port}");
+        println!("");
+        println!("");
         println!("");
     }
-    dbg!(&port);
+
+    let top = port.top_of_piles();
+    println!("TOP: {top}");
+
 
 }
 
-// fn build_piles(lines: &mut Lines, piles: &mut Vec<Pile>) {
-//     match lines.next() {
-//         None => return,
-//         Some(line) => {
-
-//         }
-//     }
-// }
-
-// fn add_line_to_piles(line: &str, piles: &mut Vec<Pile>) {
-//     let mut i = 0;
-//     let piles = piles.iter_mut();
-    
-//     for l in line.replace("    ", "[0] ").trim().split_whitespace() {
-//         if l.chars().nth(1).expect("Fixed size").is_alphabetic() {
-            
-//         }
-//         i += 1;
-//     }
-// }
 
 
 
@@ -118,8 +147,9 @@ fn get_number_of_stacks(data: &str) -> usize {
     (data.lines().next().expect("input isnt empty").len() + 1) / 4
 }
 
-fn get_crates_str(data: &str) -> String {
-    data.lines().filter(|l| l.contains('[')).fold(String::new(), |a, b| a + b + "\n")
+fn get_crates_str(data: &str) -> Vec<&str> {
+    data.lines().filter(|l| l.contains('[')).collect::<Vec<&str>>()
+    // .fold(String::new(), |a, b| a + b + "\n")
 }
 
 fn get_operations_str(data: &str) -> String {
