@@ -1,9 +1,12 @@
 use std::{fs, str::Lines};
 
+#[derive(Debug)]
 struct Crate {
     pub name: char
 }
 
+
+#[derive(Debug)]
 struct Pile {
     crates: Vec<Crate>
 }
@@ -25,42 +28,89 @@ impl Pile {
 }
 
 
+#[derive(Debug)]
+struct Port {
+    piles: Vec<Pile>
+}
+
+impl Port {
+    fn with_capacity(number_of_piles: usize) -> Port {
+        let mut piles = Vec::<Pile>::with_capacity(number_of_piles);
+        for _ in 0..number_of_piles {
+            piles.push(Pile::new());
+        }
+
+        Port {
+            piles,
+        }
+    }
+
+    fn add(&mut self, krat: Crate, index: usize) {
+        match krat.name {
+            '0' => (),
+            _  => {
+                match self.piles.get_mut(index) {
+                    Some(pile) => pile.add(krat),
+                    None => panic!("Pushing to a pile that doesnt exist")
+                }
+            }
+        }
+    }
+
+    fn pop(&mut self, index: usize) -> Option<Crate> {
+        match self.piles.get_mut(index) {
+            Some(pile) => pile.pop(),
+            None => panic!("Pushing to a pile that doesnt exist")
+        }
+    }
+}
+
+
+
+
 fn main() {
     let contents = fs::read_to_string("test_data.txt").expect("The file is static and is always parsable");
 
+    let n_stacks   = get_number_of_stacks(&contents);
+    let mut port   = Port::with_capacity(n_stacks); 
+    dbg!(&port);
+
     let crates     = get_crates_str(&contents);
-    let operations = get_operations_str(&contents);
-    let n_stacks = get_number_of_stacks(&contents);
 
-    for line in contents.lines() {
+
+    for line in crates.lines() {
         println!("{line}");
-        for l in line.replace("    ", "[0] ").trim().split_whitespace() {
+        for (i, l) in line.replace("    ", "[0] ").trim().split_whitespace().enumerate() {
             let c = l.chars().nth(1).expect("Fixed size");
-            println!("{c}");
+            let krat = Crate { name: c };
+            port.add(krat, i);
         }
+        println!("");
     }
+    dbg!(&port);
+
 }
 
-fn build_piles(lines: &mut Lines, piles: &mut Vec<Pile>) {
-    match lines.next() {
-        None => return,
-        Some(line) => {
+// fn build_piles(lines: &mut Lines, piles: &mut Vec<Pile>) {
+//     match lines.next() {
+//         None => return,
+//         Some(line) => {
 
-        }
-    }
-}
+//         }
+//     }
+// }
 
-fn add_line_to_piles(line: &str, piles: &mut Vec<Pile>) {
-    let mut i = 0;
-    let piles = piles.iter_mut();
+// fn add_line_to_piles(line: &str, piles: &mut Vec<Pile>) {
+//     let mut i = 0;
+//     let piles = piles.iter_mut();
     
-    for l in line.replace("    ", "[0] ").trim().split_whitespace() {
-        if l.chars().nth(1).expect("Fixed size").is_alphabetic() {
+//     for l in line.replace("    ", "[0] ").trim().split_whitespace() {
+//         if l.chars().nth(1).expect("Fixed size").is_alphabetic() {
             
-        }
-        i += 1;
-    }
-}
+//         }
+//         i += 1;
+//     }
+// }
 
 
 
