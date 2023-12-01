@@ -97,18 +97,21 @@ impl fmt::Display for Port {
 fn main() {
 
     let contents = fs::read_to_string("data.txt").expect("The file is static and is always parsable");
+    first_part(&contents);
+}
 
+fn first_part(contents: &str) {
     let mut port = Port::with_capacity(get_number_of_stacks(&contents)); 
 
     for line in get_crates_str(&contents).iter().rev() {
-        
-        let _ = line.chars()
-                    .skip(1)
-                    .step_by(4)
-                    .enumerate()
-                    .map(|(i, c)| {
-                        port.add(Crate { name: c }, i)
-                    }).count();
+        line.chars()
+            .skip(1)
+            .step_by(4)
+            .enumerate()
+            .map(|(i, c)| {
+                port.add(Crate { name: c }, i)
+            })
+            .count();
     }
 
     println!("{port}");
