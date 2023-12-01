@@ -80,10 +80,17 @@ impl Port {
         }
     }
 
+    fn move_crates(&mut self, src: usize, dst: usize, n: usize) {
+        // let moved_crates: Vec<Crate> = 
+        std::iter::from_fn(|| self.pop(src)).take(n).collect::<Vec<Crate>>().into_iter().rev().map(|c| self.add(c, dst)).count();
+    }
+
+
     fn top_of_piles(&self) -> String {
         self.piles.iter().filter(|p| p.crates.len() > 0).map(|p| p.crates.last().expect("filtered the empty ones").name).collect()
     }
 }
+
 
 impl fmt::Display for Port {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -92,13 +99,44 @@ impl fmt::Display for Port {
     }
 }
 
-
-
 fn main() {
-
     let contents = fs::read_to_string("data.txt").expect("The file is static and is always parsable");
-    first_part(&contents);
+    // first_part(&contents);
+    second_part(&contents);
 }
+
+
+
+fn second_part(contents: &str) {
+    let mut port = Port::with_capacity(get_number_of_stacks(&contents)); 
+
+    for line in get_crates_str(&contents).iter().rev() {
+        line.chars()
+            .skip(1)
+            .step_by(4)
+            .enumerate()
+            .map(|(i, c)| {
+                port.add(Crate { name: c }, i)
+            })
+            .count();
+    }
+
+    println!("{port}");
+
+    for line in get_operations_str(&contents).lines() {
+        let mut words = line.split_whitespace();
+        let number: usize = words.nth(1).expect("fixed format input").parse().expect("fixed format input");
+        let src   : usize = words.nth(1).expect("fixed format input").parse::<usize>().expect("fixed format input") - 1;
+        let dst   : usize = words.nth(1).expect("fixed format input").parse::<usize>().expect("fixed format input") - 1;
+        
+        port.move_crates(src, dst, number);
+    }
+    println!("\n{port}\n");
+
+    let top = port.top_of_piles();
+    println!("TOP: {top}");
+}
+
 
 fn first_part(contents: &str) {
     let mut port = Port::with_capacity(get_number_of_stacks(&contents)); 
