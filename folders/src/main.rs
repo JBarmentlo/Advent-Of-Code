@@ -1,5 +1,9 @@
 use std::fs;
 
+pub trait Sizeable {
+    fn size(&self) -> u32;
+}
+
 enum Command {
     Cd(String),
     Ls,
@@ -10,6 +14,12 @@ struct Folder {
     name: String,
     files: Vec<File>,
     subfolders: Vec<Folder>,
+}
+
+impl Sizeable for Folder {
+    fn size(&self) -> u32 {
+        self.files.iter().fold(0, |a, b| a + b.size) + self.subfolders.iter().fold(0,|a, b| a + b.size())
+    }
 }
 
 impl Folder {
@@ -34,10 +44,6 @@ impl Folder {
             files,
             subfolders,
         }
-    }
-
-    fn size(&self) -> u32 {
-        self.files.iter().fold(0, |a, b| a + b.size) + self.subfolders.iter().fold(0,|a, b| a + b.size())
     }
 
     fn add_subfolder(&mut self, subfolder: Folder) {
@@ -80,6 +86,7 @@ fn main() {
 
 fn parse(text: &String) {
     let mut root = Folder::new("root", None, None);
+    let mut cwd = root;
     let _ = text.split("$")
             .skip(1)
             .map(|block| {
@@ -90,7 +97,10 @@ fn parse(text: &String) {
                     Some(line) => {
                         let mut words = line.split_whitespace();
                         match words.next().unwrap() {
-                            "cd" => root.add_subfolder(Folder::new_empty(words.next().unwrap())),
+                            "cd" => {
+                                cwd.add_subfolder(Folder::new_empty(words.next().unwrap()));
+                                // cwd = cwd.ge
+                            },
                             // "ls" => {let files: Vec<Files> = lines.map(|line| File::from_string(line)).collect();},
                             "ls" => root.add_files(&mut lines.map(|line| File::from_string(line)).into_iter()),
                             _ => panic!(),
