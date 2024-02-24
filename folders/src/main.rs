@@ -49,25 +49,27 @@ impl Folder {
             None => self.subfolders.insert(name, folder),
             Some(f) => self.subfolders.insert(name, f.merge(folder))
         };
-
     }
 
     fn add_file(&mut self, name: String, file: File) {
         self.files.insert(name, file);
+    }
+
+    fn add_text_line(&mut self, line: &str) {
+        if line.trim().starts_with("dir") {
+            self.add_subfolder(line.trim().split_whitespace().nth(1).expect("should be there").to_string(), Folder::new_empty())
+        } else {
+            let mut words = line.trim().split_whitespace();
+            let size: u32 = words.next().expect("should be there").parse().expect("should be there");
+            let name = words.next().expect("should be there");
+            self.add_file(name.to_string(), File {size});
+        }
     }
 }
 
 #[derive(Debug, Clone)]
 struct File {
     size: u32,
-}
-
-impl File {
-    fn from_string(line: &str) -> File {
-        println!("{line}");
-        File { size : line.trim().split_whitespace().next().unwrap().parse().expect("ls output is fixed") }
-        
-    }
 }
 
 
@@ -78,31 +80,60 @@ fn main() {
 }
 
 fn parse(text: &String) {
-    let mut root = Folder::new_empty();
+    let root = &mut Folder::new_empty();
     let mut cwd = root;
 
-    text.split("$")
-        .skip(1)
-        .map(|block| {
-            println!("Parsing block:\n{block}");
-            let mut lines = block.lines();
-            match lines.next() {
-                None => (),
-                Some(line) => {
-                    let mut words = line.split_whitespace();
-                    match words.next().unwrap() {
-                        // "cd" => {
-                        //     let name = words.next().unwrap().to_string();
-                        //     cwd.add_subfolder(&name, Folder::new_empty());
-                        //     cwd = cwd.subfolders.get_mut(&name).unwrap();
-                        // },
-                        // // "ls" => {let files: Vec<Files> = lines.map(|line| File::from_string(line)).collect();},
-                        // "ls" => root.add_files(&mut lines.map(|line| File::from_string(line)).into_iter()),
-                        _ => panic!(),
-                    }
+    let blocks = text.split("$")
+        .skip(1);
+
+    for block in blocks {
+        let mut lines = block.lines();
+        let command_line = lines.next().expect("every block has a first line").trim();
+        let mut command_line_words = command_line.split_whitespace();
+        let cmd = command_line_words.next().expect("always here");
+        let arg = command_line_words.next();
+        
+        let respones_lines = lines;
+
+        match cmd {
+            "cd" => {
+                let arg = arg.expect("always arg for cd");
+                cwd.add_subfolder(arg.to_string(), Folder::new_empty());
+                cwd = cwd.subfolders.get_mut(arg).expect("Just added it");
+            },
+            
+            "ls" => {
+                for line in respones_lines {
+                    cwd.add_text_line(line);
                 }
-            }
-        })
-        .collect::<Vec<_>>();
+            },
+
+            _ => ()
+        }
+    }
+        // .map(|block| {
+        //     println!("Parsing block:\n{block}");
+        //     let mut lines = block.lines();
+        //     match lines.next() {
+        //         None => (),
+        //         Some(line) => {
+        //             let mut words = line.split_whitespace();
+        //             match words.next().unwrap() {
+        //                 "cd" => {
+        //                     let name = words.next().unwrap().to_string();
+        //                     cwd.add_subfolder(name.clone(), Folder::new_empty());
+        //                     cwd = cwd.subfolders.get_mut(&name).expect("Just added it");
+        //                 },
+        //                 "ls" => {
+        //                     for line in lines {
+        //                         cwd.add_text_line(line);
+        //                     }
+        //                 },
+        //                 _ => panic!(),
+        //             }
+        //         }
+        //     }
+        // })
+        // .collect::<Vec<_>>();
     // dbg!(root.size());
 }
