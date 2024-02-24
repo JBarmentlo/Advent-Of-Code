@@ -65,6 +65,10 @@ impl Folder {
             self.add_file(name.to_string(), File {size});
         }
     }
+
+    fn size(&self) -> u32 {
+        self.files.values().fold(0, |a, b| a + b.size) + self.subfolders.values().fold(0,|a, b| a + b.size())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -75,13 +79,14 @@ struct File {
 
 fn main() { 
     println!("Hello, world!");
-    let contents = fs::read_to_string("data.txt").expect("The file is static and is always parsable");
+    let contents = fs::read_to_string("test_data.txt").expect("The file is static and is always parsable");
+    // let contents = fs::read_to_string("data.txt").expect("The file is static and is always parsable");
     parse(&contents);
 }
 
 fn parse(text: &String) {
-    let root = &mut Folder::new_empty();
-    let mut cwd = root;
+    let mut root = Folder::new_empty();
+    let mut cwd = &mut root;
 
     let blocks = text.split("$")
         .skip(1);
@@ -111,29 +116,7 @@ fn parse(text: &String) {
             _ => ()
         }
     }
-        // .map(|block| {
-        //     println!("Parsing block:\n{block}");
-        //     let mut lines = block.lines();
-        //     match lines.next() {
-        //         None => (),
-        //         Some(line) => {
-        //             let mut words = line.split_whitespace();
-        //             match words.next().unwrap() {
-        //                 "cd" => {
-        //                     let name = words.next().unwrap().to_string();
-        //                     cwd.add_subfolder(name.clone(), Folder::new_empty());
-        //                     cwd = cwd.subfolders.get_mut(&name).expect("Just added it");
-        //                 },
-        //                 "ls" => {
-        //                     for line in lines {
-        //                         cwd.add_text_line(line);
-        //                     }
-        //                 },
-        //                 _ => panic!(),
-        //             }
-        //         }
-        //     }
-        // })
-        // .collect::<Vec<_>>();
-    // dbg!(root.size());
+    let size = root.size();
+    dbg!(root);
+    dbg!(size);
 }
