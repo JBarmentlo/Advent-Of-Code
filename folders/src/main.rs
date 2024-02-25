@@ -8,12 +8,45 @@ fn main() {
     println!("Hello, world!");
     let contents = fs::read_to_string("test_data.txt").expect("The file is static and is always parsable");
     // let contents = fs::read_to_string("data.txt").expect("The file is static and is always parsable");
-    parse(&contents);
+    let root = parse(&contents);
+    dbg!(&root);
+    let sum = sum_larger(&"root".to_string(), &root, 100000);
+    dbg!(sum);
 }
 
+#[derive(Debug)]
 enum Fuck { 
     File(u32),
     Folder(HashMap<String, Fuck>)
+}
+
+
+
+fn sum_larger(name: &String, root: &Fuck, max_limit: u32) -> (u32, u32) {
+    // if let Fuck::Folder(map) = root {
+    //     map.iter().map(|f|)
+    // }
+    match root {
+        Fuck::File(size) => {
+            (*size, *size)
+        },
+        Fuck::Folder(map) => {
+            map.iter()
+            .map(|(_, f)| sum_larger(f, max_limit))
+            // .filter(|(total_size, counted_size)| *total_size > min_limit && *total_size < max_limit)
+            .fold((0, 0), |a, b| {
+                let total_size = a.0 + b.0;
+                let mut counted_size = 0;
+                if a.1 < max_limit{
+                    counted_size += a.1;
+                }
+                if b.1 < max_limit{
+                    counted_size += b.1;
+                }
+                (total_size, counted_size)
+            })
+        }
+    }
 }
 
 fn get_mut_recursive<'a>(mut names: impl Iterator<Item=&'a String>, fuck: &mut Fuck) -> &mut HashMap<String, Fuck> {
@@ -35,13 +68,13 @@ fn get_mut_recursive<'a>(mut names: impl Iterator<Item=&'a String>, fuck: &mut F
     }
 }
 
-fn parse(text: &String) {
+fn parse(text: &String) -> Fuck {
     let mut root_fuck = Fuck::Folder(HashMap::new());
     // let mut current_fucks: Vec<&Fuck> = Vec::new();
     // current_fucks.push(&mut root_fuck);
     let mut current_fucks: Vec<String> = Vec::new();
-    current_fucks.push("root".to_string());
     get_mut_recursive(current_fucks.iter(), &mut root_fuck).insert("root".to_string(), Fuck::Folder(HashMap::new()));
+    current_fucks.push("root".to_string());
 
 
     let blocks = text.split("$ ")
@@ -84,63 +117,63 @@ fn parse(text: &String) {
                     }
                 }
             },
-
             _ => ()
         }
         println!();
         println!();
     }
+    root_fuck
 }
 
-enum FsContent {
-    File(String, u32),
-    Folder(String, Vec<FsContent>)
-}
+// enum FsContent {
+//     File(String, u32),
+//     Folder(String, Vec<FsContent>)
+// }
 
-fn parse_file_map(files: HashMap<String, u32>) -> Vec<FsContent> {
-    // Folder(files.iter().filter)
-    let mut keys: Vec<&String> = files.keys().collect();
-    keys.sort();
-    for key in keys {
-        let value = files.get(key).unwrap();
-        let count = key.split("/").count() - 1;
-        println!("{count} : {key} : {value}");
-    }
-    dbg!(&files);
-    create_folder(files, 2)
-    // files.iter()
-}
+// fn parse_file_map(files: HashMap<String, u32>) -> Vec<FsContent> {
+//     // Folder(files.iter().filter)
+//     let mut keys: Vec<&String> = files.keys().collect();
+//     keys.sort();
+//     for key in keys {
+//         let value = files.get(key).unwrap();
+//         let count = key.split("/").count() - 1;
+//         println!("{count} : {key} : {value}");
+//     }
+//     dbg!(&files);
+//     create_folder(files, 2)
+//     // files.iter()
+// }
 
-fn is_dir(filename: &String) -> bool {
-    let count = filename.split("/").count();
-    println!("name: {filename}: {count}");
+// fn is_dir(filename: &String) -> bool {
+//     let count = filename.split("/").count();
+//     println!("name: {filename}: {count}");
     
-    filename.split("/").count() > 1
-}
+//     filename.split("/").count() > 1
+// }
 
-// process_iterable<T: IntoIterator<Item = (String, u32)>>(iterable: T)
-fn create_folder(filenames: HashMap<String, u32>, i: u32) -> Vec<FsContent> {
-// fn create_folder<T: Iterator<Item = (String, u32)> + Clone>(mut filenames: T) -> Vec<FsContent> {
-    if i == 0 {
-        let mut r: Vec<FsContent> = Vec::new();
-        r.push(FsContent::File("end".to_string(), 0));
-        return r
-    }
-    println!();
-    println!("Folder from: {i}");
-    dbg!(&filenames);
-    filenames.clone().drain().map(
-        |(name, size)| {
-            if !is_dir(&name) {
-                FsContent::File(name.clone(), size)
-            } else {
-                let folder_name = name.split_once("/").unwrap().0;
-                let folder_filenames = filenames.clone().drain().filter(|(name, size)| name.starts_with(folder_name)).collect();
-                FsContent::Folder(
-                    name.clone(), 
-                    create_folder(folder_filenames, i - 1)
-                )
-            }
-        }
-    ).collect()
-}
+// // process_iterable<T: IntoIterator<Item = (String, u32)>>(iterable: T)
+// fn create_folder(filenames: HashMap<String, u32>, i: u32) -> Vec<FsContent> {
+// // fn create_folder<T: Iterator<Item = (String, u32)> + Clone>(mut filenames: T) -> Vec<FsContent> {
+//     if i == 0 {
+//         let mut r: Vec<FsContent> = Vec::new();
+//         r.push(FsContent::File("end".to_string(), 0));
+//         return r
+//     }
+//     println!();
+//     println!("Folder from: {i}");
+//     dbg!(&filenames);
+//     filenames.clone().drain().map(
+//         |(name, size)| {
+//             if !is_dir(&name) {
+//                 FsContent::File(name.clone(), size)
+//             } else {
+//                 let folder_name = name.split_once("/").unwrap().0;
+//                 let folder_filenames = filenames.clone().drain().filter(|(name, size)| name.starts_with(folder_name)).collect();
+//                 FsContent::Folder(
+//                     name.clone(), 
+//                     create_folder(folder_filenames, i - 1)
+//                 )
+//             }
+//         }
+//     ).collect()
+// }
