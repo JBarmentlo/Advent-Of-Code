@@ -6,13 +6,8 @@ use std::iter::Filter;
 
 fn main() { 
     println!("Hello, world!");
-    let contents = fs::read_to_string("test_data.txt").expect("The file is static and is always parsable");
-    // let contents = fs::read_to_string("data.txt").expect("The file is static and is always parsable");
-    let mut root = parse(&contents);
-    // let mut target_list = vec!["root".to_string(), "a".to_string()];
-    // let target_name = target_list.pop().expect("");
-    // let root = get_mut_recursive(target_list.iter(), &mut root).get(&target_name).expect("msg");
-    // dbg!(target_name, &root);
+    let contents = fs::read_to_string("data.txt").expect("The file is static and is always parsable");
+    let root = parse(&contents);
     let sum = sum_larger(&root, 100000);
     dbg!(sum);
 }
@@ -23,12 +18,6 @@ enum Fuck {
     Folder(HashMap<String, Fuck>)
 }
 
-fn println_recurse(depth: u32, text: &String) {
-    for i in [0..depth] {
-        print!("  ")
-    }
-    println!("{text}");
-}
 
 #[derive(Debug, Default)]
 struct SizeCounter {
@@ -45,7 +34,7 @@ fn sum_larger(root: &Fuck, max_limit: u32) -> SizeCounter {
             }
         },
         Fuck::Folder(map) => {
-            map.values()
+            let mut out = map.values()
             .map(|f| sum_larger(f, max_limit))
             .fold(
                 SizeCounter::default(), 
@@ -54,7 +43,7 @@ fn sum_larger(root: &Fuck, max_limit: u32) -> SizeCounter {
                         let p = a.total + b.total;
                         SizeCounter{
                             total: a.total + b.total,
-                            counted: a.counted + b.counted + b.total,
+                            counted: a.counted + b.counted,
                         }
                     } else {
                         SizeCounter{
@@ -62,9 +51,15 @@ fn sum_larger(root: &Fuck, max_limit: u32) -> SizeCounter {
                             counted: a.counted + b.counted,
                         }
                     }
-
                 }
-            )
+            );
+            if out.total < max_limit {
+                out.counted = out.counted + out.total;
+                let p = out.total;
+                println!("Adding {p}")
+            }
+
+            out
         }
     }
 }
@@ -90,8 +85,6 @@ fn get_mut_recursive<'a>(mut names: impl Iterator<Item=&'a String>, fuck: &mut F
 
 fn parse(text: &String) -> Fuck {
     let mut root_fuck = Fuck::Folder(HashMap::new());
-    // let mut current_fucks: Vec<&Fuck> = Vec::new();
-    // current_fucks.push(&mut root_fuck);
     let mut current_fucks: Vec<String> = Vec::new();
     get_mut_recursive(current_fucks.iter(), &mut root_fuck).insert("root".to_string(), Fuck::Folder(HashMap::new()));
     current_fucks.push("root".to_string());
