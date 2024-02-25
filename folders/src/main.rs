@@ -9,10 +9,10 @@ fn main() {
     let contents = fs::read_to_string("test_data.txt").expect("The file is static and is always parsable");
     // let contents = fs::read_to_string("data.txt").expect("The file is static and is always parsable");
     let mut root = parse(&contents);
-    let mut target_list = vec!["root".to_string(), "a".to_string()];
-    let target_name = target_list.pop().expect("");
-    let root = get_mut_recursive(target_list.iter(), &mut root).get(&target_name).expect("msg");
-    dbg!(target_name, &root);
+    // let mut target_list = vec!["root".to_string(), "a".to_string()];
+    // let target_name = target_list.pop().expect("");
+    // let root = get_mut_recursive(target_list.iter(), &mut root).get(&target_name).expect("msg");
+    // dbg!(target_name, &root);
     let sum = sum_larger(&root, 100000);
     dbg!(sum);
 }
@@ -45,20 +45,26 @@ fn sum_larger(root: &Fuck, max_limit: u32) -> SizeCounter {
             }
         },
         Fuck::Folder(map) => {
-            let mut out = map.iter()
-            .map(|(name, f)| sum_larger(f, max_limit))
+            map.values()
+            .map(|f| sum_larger(f, max_limit))
             .fold(
                 SizeCounter::default(), 
-                |a, b| SizeCounter{
-                    total: a.total + b.total,
-                    counted: a.counted + b.counted,
-                }
-            );
-            if out.total < max_limit {
-                out.counted = out.counted + out.total;
-            }
+                |a, b| {
+                    if (a.total + b.total) < max_limit {
+                        let p = a.total + b.total;
+                        SizeCounter{
+                            total: a.total + b.total,
+                            counted: a.counted + b.counted + b.total,
+                        }
+                    } else {
+                        SizeCounter{
+                            total: a.total + b.total,
+                            counted: a.counted + b.counted,
+                        }
+                    }
 
-            out
+                }
+            )
         }
     }
 }
