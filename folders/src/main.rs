@@ -10,7 +10,7 @@ fn main() {
     // let contents = fs::read_to_string("data.txt").expect("The file is static and is always parsable");
     let root = parse(&contents);
     dbg!(&root);
-    let sum = sum_larger(&"root".to_string(), &root, 100000);
+    let sum = sum_larger(&"".to_string(),0, &root, 100000);
     dbg!(sum);
 }
 
@@ -20,33 +20,51 @@ enum Fuck {
     Folder(HashMap<String, Fuck>)
 }
 
+fn println_recurse(depth: u32, text: &String) {
+    for i in [0..depth] {
+        print!("  ")
+    }
+    println!("{text}");
+}
+
+fn sum_larger(name: &String, depth: u32, root: &Fuck, max_limit: u32) -> (u32, u32) {
 
 
-fn sum_larger(name: &String, root: &Fuck, max_limit: u32) -> (u32, u32) {
-    // if let Fuck::Folder(map) = root {
-    //     map.iter().map(|f|)
-    // }
+    let total;
+    let counted;
     match root {
         Fuck::File(size) => {
-            (*size, *size)
+            total = *size;
+            counted = *size;
         },
         Fuck::Folder(map) => {
-            map.iter()
-            .map(|(_, f)| sum_larger(f, max_limit))
-            // .filter(|(total_size, counted_size)| *total_size > min_limit && *total_size < max_limit)
-            .fold((0, 0), |a, b| {
-                let total_size = a.0 + b.0;
-                let mut counted_size = 0;
-                if a.1 < max_limit{
-                    counted_size += a.1;
-                }
-                if b.1 < max_limit{
-                    counted_size += b.1;
-                }
-                (total_size, counted_size)
+            for _ in 0..depth {
+                print!("  ")
+            }
+            println!("{name}");
+            let out = map.iter()
+            .map(|(name, f)| {
+                let sum = sum_larger(name, depth + 1, f, max_limit);
+                (sum.0, sum.1, name, depth)
             })
+            .fold((0, 0, "init", 0), |a, b| {
+                let total_size = a.0 + b.0;
+                let mut counted_size = b.1;
+                if a.1 < max_limit{
+                    counted_size = counted_size + a.1;
+                }
+                (total_size, counted_size, b.2, b.3)
+            });
+            total = out.0;
+            counted = out.1;
         }
+    };
+    for _ in 0..depth {
+        print!("  ")
     }
+    println!("{name} : ({total}, {counted}) ");
+    (total, counted)
+
 }
 
 fn get_mut_recursive<'a>(mut names: impl Iterator<Item=&'a String>, fuck: &mut Fuck) -> &mut HashMap<String, Fuck> {
