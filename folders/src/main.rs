@@ -16,7 +16,7 @@ enum Fuck {
     Folder(HashMap<String, Fuck>)
 }
 
-fn get_mut_recursive(mut names: impl Iterator<Item=&String>, fuck: &Fuck) -> &mut HashMap<String, Fuck> {
+fn get_mut_recursive<'a>(mut names: impl Iterator<Item=&'a String>, fuck: &mut Fuck) -> &mut HashMap<String, Fuck> {
     match names.next() {
         None => {
             if let Fuck::Folder(ref mut map) = fuck {
@@ -27,7 +27,7 @@ fn get_mut_recursive(mut names: impl Iterator<Item=&String>, fuck: &Fuck) -> &mu
         },
         Some(name) => {
             if let Fuck::Folder(map) = fuck {
-                get_mut_recursive(names, map.get(name).expect("Fuck"))
+                get_mut_recursive(names, map.get_mut(name).expect("Fuck"))
             } else {
                 panic!("fuck")
             }
@@ -41,7 +41,7 @@ fn parse(text: &String) {
     // current_fucks.push(&mut root_fuck);
     let mut current_fucks: Vec<String> = Vec::new();
     current_fucks.push("root".to_string());
-    get_mut_recursive(current_fucks.iter(), &root_fuck).insert("root".to_string(), Fuck::Folder(HashMap::new()));
+    get_mut_recursive(current_fucks.iter(), &mut root_fuck).insert("root".to_string(), Fuck::Folder(HashMap::new()));
 
 
     let blocks = text.split("$ ")
@@ -64,12 +64,9 @@ fn parse(text: &String) {
                 } else if arg == "/" {
                     current_fucks = vec!["root".to_string()];
                 } else {
-                    
-                    // TODO: handle alread exists
-                    if let Fuck::Folder(ref mut map) = root_fuck {
-                        map.insert("root".to_string(), Fuck::Folder(HashMap::new()));
-                    }
-
+                    let map = get_mut_recursive(current_fucks.iter(), &mut root_fuck);
+                    map.entry(arg.to_string()).or_insert(Fuck::Folder(HashMap::new()));
+                    current_fucks.push(arg.to_string());
                 }
             },
             
@@ -82,20 +79,8 @@ fn parse(text: &String) {
                         let mut words = trimmed_line.split_whitespace();
                         let file_size: u32 = words.next().unwrap().parse().expect("Std format expected");
                         let file_name = words.next().unwrap();
-
-                        match current_fucks.last_mut().expect("Made it myself") {
-                            Fuck::File(size) => panic!(),
-                            Fuck::Folder(map) => map.insert(file_name.to_string(), Fuck::File(file_size)),
-                        };
-                    } else {
-                        // let mut words = trimmed_line.split_whitespace();
-                        
-                        // let dir_name = words.nth(1).unwrap();
-
-                        // match current_fucks.last_mut().expect("Made it myself") {
-                        //     Fuck::File(size) => panic!(),
-                        //     Fuck::Folder(mut map) => map.insert(dir_name.to_string(), Fuck::Folder(HashMap::new())),
-                        // };
+                        let map = get_mut_recursive(current_fucks.iter(), &mut root_fuck);
+                        map.insert(file_name.to_string(), Fuck::File(file_size));
                     }
                 }
             },
