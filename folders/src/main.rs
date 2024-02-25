@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Iter;
 use std::fs;
+use std::io::Cursor;
 use std::iter::Filter;
 
 fn main() { 
@@ -10,9 +11,39 @@ fn main() {
     parse(&contents);
 }
 
+enum Fuck { 
+    File(u32),
+    Folder(HashMap<String, Fuck>)
+}
+
+fn get_mut_recursive(mut names: impl Iterator<Item=&String>, fuck: &Fuck) -> &mut HashMap<String, Fuck> {
+    match names.next() {
+        None => {
+            if let Fuck::Folder(ref mut map) = fuck {
+                map
+            } else {
+                panic!("fuck")
+            }
+        },
+        Some(name) => {
+            if let Fuck::Folder(map) = fuck {
+                get_mut_recursive(names, map.get(name).expect("Fuck"))
+            } else {
+                panic!("fuck")
+            }
+        }
+    }
+}
+
 fn parse(text: &String) {
-    let mut folder_names: Vec<String> = Vec::new();
-    let mut files: HashMap<String, u32> = HashMap::new();
+    let mut root_fuck = Fuck::Folder(HashMap::new());
+    // let mut current_fucks: Vec<&Fuck> = Vec::new();
+    // current_fucks.push(&mut root_fuck);
+    let mut current_fucks: Vec<String> = Vec::new();
+    current_fucks.push("root".to_string());
+    get_mut_recursive(current_fucks.iter(), &root_fuck).insert("root".to_string(), Fuck::Folder(HashMap::new()));
+
+
     let blocks = text.split("$ ")
         .skip(2);
 
@@ -29,32 +60,42 @@ fn parse(text: &String) {
             "cd" => {
                 let arg = arg.expect("always arg for cd");
                 if arg == ".." {
-                    folder_names.pop();
+                    current_fucks.pop();
                 } else if arg == "/" {
-                    folder_names = Vec::new();
+                    current_fucks = vec!["root".to_string()];
                 } else {
-                    folder_names.push(arg.to_string());
-                }
+                    
+                    // TODO: handle alread exists
+                    if let Fuck::Folder(ref mut map) = root_fuck {
+                        map.insert("root".to_string(), Fuck::Folder(HashMap::new()));
+                    }
 
-                let cwd = folder_names.join("/");
-                println!("current_folder: {cwd}");
+                }
             },
             
             "ls" => {
-                let cwd = folder_names.join("/");
-                println!("current_folder: {cwd}");
                 for line in respones_lines {
                     println!("\t{line}");
                     let trimmed_line = line.trim();
-                    if  !trimmed_line.starts_with("dir") {
+                    
+                    if !trimmed_line.starts_with("dir") {
                         let mut words = trimmed_line.split_whitespace();
                         let file_size: u32 = words.next().unwrap().parse().expect("Std format expected");
                         let file_name = words.next().unwrap();
-                        folder_names.push(file_name.to_string());
-                        let full_path = folder_names.join("/");
-                        folder_names.pop();
-                        println!("\t\tAdd: {full_path}: {file_size}");
-                        files.insert(full_path, file_size);
+
+                        match current_fucks.last_mut().expect("Made it myself") {
+                            Fuck::File(size) => panic!(),
+                            Fuck::Folder(map) => map.insert(file_name.to_string(), Fuck::File(file_size)),
+                        };
+                    } else {
+                        // let mut words = trimmed_line.split_whitespace();
+                        
+                        // let dir_name = words.nth(1).unwrap();
+
+                        // match current_fucks.last_mut().expect("Made it myself") {
+                        //     Fuck::File(size) => panic!(),
+                        //     Fuck::Folder(mut map) => map.insert(dir_name.to_string(), Fuck::Folder(HashMap::new())),
+                        // };
                     }
                 }
             },
@@ -64,10 +105,6 @@ fn parse(text: &String) {
         println!();
         println!();
     }
-    dbg!(&files);
-    let total_size: u32 = files.values().sum();
-    dbg!(total_size);
-    parse_file_map(files);
 }
 
 enum FsContent {
@@ -84,25 +121,39 @@ fn parse_file_map(files: HashMap<String, u32>) -> Vec<FsContent> {
         let count = key.split("/").count() - 1;
         println!("{count} : {key} : {value}");
     }
-    create_folder(files.iter().map(|(&k, &v)| (k.clone(), v)))
+    dbg!(&files);
+    create_folder(files, 2)
     // files.iter()
 }
 
 fn is_dir(filename: &String) -> bool {
-    filename.split("/").count() == 1
+    let count = filename.split("/").count();
+    println!("name: {filename}: {count}");
+    
+    filename.split("/").count() > 1
 }
+
 // process_iterable<T: IntoIterator<Item = (String, u32)>>(iterable: T)
-// fn create_folder(mut filenames: Filter<Iter<String, u32>, _>) -> Vec<FsContent> {
-fn create_folder<T: Iterator<Item = (String, u32)> + Clone>(mut filenames: T) -> Vec<FsContent> {
-    filenames.clone().into_iter().map(
+fn create_folder(filenames: HashMap<String, u32>, i: u32) -> Vec<FsContent> {
+// fn create_folder<T: Iterator<Item = (String, u32)> + Clone>(mut filenames: T) -> Vec<FsContent> {
+    if i == 0 {
+        let mut r: Vec<FsContent> = Vec::new();
+        r.push(FsContent::File("end".to_string(), 0));
+        return r
+    }
+    println!();
+    println!("Folder from: {i}");
+    dbg!(&filenames);
+    filenames.clone().drain().map(
         |(name, size)| {
             if !is_dir(&name) {
                 FsContent::File(name.clone(), size)
             } else {
                 let folder_name = name.split_once("/").unwrap().0;
+                let folder_filenames = filenames.clone().drain().filter(|(name, size)| name.starts_with(folder_name)).collect();
                 FsContent::Folder(
                     name.clone(), 
-                    create_folder(filenames.clone().filter(|(name, size)| name.starts_with(folder_name)).into_iter())
+                    create_folder(folder_filenames, i - 1)
                 )
             }
         }
