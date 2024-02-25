@@ -30,7 +30,7 @@ fn sum_larger(root: &Fuck, max_limit: u32) -> SizeCounter {
         Fuck::File(size) => {
             SizeCounter{
                 total: *size, 
-                counted: 0
+                counted: 0,
             }
         },
         Fuck::Folder(map) => {
@@ -38,27 +38,15 @@ fn sum_larger(root: &Fuck, max_limit: u32) -> SizeCounter {
             .map(|f| sum_larger(f, max_limit))
             .fold(
                 SizeCounter::default(), 
-                |a, b| {
-                    if (a.total + b.total) < max_limit {
-                        let p = a.total + b.total;
-                        SizeCounter{
-                            total: a.total + b.total,
-                            counted: a.counted + b.counted,
-                        }
-                    } else {
-                        SizeCounter{
-                            total: a.total + b.total,
-                            counted: a.counted + b.counted,
-                        }
-                    }
+                |a, b| SizeCounter{
+                    total: a.total + b.total,
+                    counted: a.counted + b.counted,
                 }
             );
+            
             if out.total < max_limit {
-                out.counted = out.counted + out.total;
-                let p = out.total;
-                println!("Adding {p}")
+                out.counted += out.total;
             }
-
             out
         }
     }
