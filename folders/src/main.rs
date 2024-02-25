@@ -1,38 +1,58 @@
-use std::{collections::HashMap, fs};
+use std::{borrow::BorrowMut, collections::HashMap, fs, rc::{Rc, Weak}};
 
 pub trait Sizeable {
     fn size(&self) -> u32;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 struct Folder {
     files: HashMap<String, File>,
     subfolders: HashMap<String, Folder>,
+    parent: Weak<Folder>
 }
 
-// impl Sizeable for Folder {
-//     fn size(&self) -> u32 {
-//         self.files.iter().fold(0, |a, b| a + b.size) + self.subfolders.iter().fold(0,|a, b| a + b.size())
+// #[derive(Debug)]
+// struct Node {
+//     folder: Folder,
+//     parent: Weak<Node>,
+//     children: HashMap<String, Node>,
+// }
+
+// impl Node {
+//     fn empty() -> Node {
+//         Node {
+//             folder : Folder::new_empty(),
+//             children: HashMap::new()
+//         }
+//     }
+
+//     fn add_child(&mut self, name: &String, child: Node) {
+//         self.children.insert(name.clone(), child);
 //     }
 // }
 
 impl Folder {
-    fn new(files: Option<HashMap<String, File>>, subfolders: Option<HashMap<String, Folder>>) -> Folder {
+    fn new(files: Option<HashMap<String, File>>, subfolders: Option<HashMap<String, Folder>>, parent: Option<Folder>) -> Folder {
         let files = files.unwrap_or_default();
         let subfolders = subfolders.unwrap_or_default();
+        let parent = parent.unwrap_or_default();
+        let parent = Rc::downgrade(&Rc::new(parent));
         // dbg!(&files);
         Folder {
             files,
             subfolders,
+            parent,
         }
     }
 
     fn new_empty() -> Folder {
         let files: HashMap<String, File> = HashMap::new();
         let subfolders: HashMap<String, Folder>= HashMap::new();
+        let parent = Weak::new();
         Folder {
             files,
             subfolders,
+            parent,
         }
     }
 
@@ -102,7 +122,7 @@ fn parse(text: &String) {
 
         match cmd {
             "cd" => {
-                let arg = arg.expect("always arg for cd");
+                let arg = arg.expect("always arg for cd"); 
                 cwd.add_subfolder(arg.to_string(), Folder::new_empty());
                 cwd = cwd.subfolders.get_mut(arg).expect("Just added it");
             },
