@@ -1,13 +1,47 @@
 use std::collections::HashMap;
-use std::collections::hash_map::Iter;
 use std::fs;
 
 #[derive(Debug)]
-enum FsObject { 
+enum OldFsObject { 
     File(u32),
-    Folder(HashMap<String, FsObject>)
+    Folder(HashMap<String, OldFsObject>)
 }
 
+
+#[derive(Debug, Default)]
+struct Folder {
+    name: String,
+    size: Option<u32>,
+    contents: HashMap<String, FsObject>
+}
+
+impl Folder {
+    fn get_nested_folder(&mut self, mut names: impl Iterator<Item=&'a String>) -> &mut Folder {
+        match names.next() {
+            None => self,
+            Some(name) => {
+                match self.contents.get_mut(name).expect("Looking for missing folder") {
+                    FsObject::Folder(ref mut folder) => {
+                        folder.get_nested_folder(names)
+                    }
+                    _ => panic!("cd into a file"),
+                }
+            }
+        }
+    }    
+}
+
+#[derive(Debug, Default)]
+struct File {
+    name: String,
+    size: Option<u32>,
+}
+
+#[derive(Debug, Default)]
+enum FsObject { 
+    File(File),
+    Folder(Folder)
+}
 
 #[derive(Debug, Default)]
 struct SizeCounter {
@@ -19,24 +53,33 @@ fn main() {
     println!("Hello, world!");
     let contents = fs::read_to_string("data.txt").expect("The file is static and is always parsable");
     let root = parse(&contents);
-    let sum = sum_larger(&root, 100000);
-    dbg!(sum);
+    parse_new(&contents);
+    let sum = sum_folders_smaller_than(&root, 100000);
+    println!("The first answer is {0}", sum.counted);
+
+    let total_space: i32 = 70000000;
+    let required_space: i32  = 30000000;
+    let missing_space: i32 = required_space - total_space + sum.total as i32;
+    println!("Missing space: {missing_space}");
+    // if missing_space < 0 {
+    //     panic!("nope");
+    // } else {
+    //     find_smallest_folder_bigger_than("root".to_string(), &root, missing_space as u32);
+    // }
 }
 
 
-
-
-fn sum_larger(root: &FsObject, max_limit: u32) -> SizeCounter {
+fn sum_folders_smaller_than(root: &OldFsObject, max_limit: u32) -> SizeCounter {
     match root {
-        FsObject::File(size) => {
+        OldFsObject::File(size) => {
             SizeCounter{
                 total: *size, 
                 counted: 0,
             }
         },
-        FsObject::Folder(map) => {
+        OldFsObject::Folder(map) => {
             let mut out = map.values()
-            .map(|f| sum_larger(f, max_limit))
+            .map(|f| sum_folders_smaller_than(f, max_limit))
             .fold(
                 SizeCounter::default(), 
                 |a, b| SizeCounter{
@@ -54,17 +97,17 @@ fn sum_larger(root: &FsObject, max_limit: u32) -> SizeCounter {
     }
 }
 
-fn get_mut_recursive<'a>(mut names: impl Iterator<Item=&'a String>, fuck: &mut FsObject) -> &mut HashMap<String, FsObject> {
+fn get_mut_recursive<'a>(mut names: impl Iterator<Item=&'a String>, fuck: &mut OldFsObject) -> &mut HashMap<String, OldFsObject> {
     match names.next() {
         None => {
-            if let FsObject::Folder(ref mut map) = fuck {
+            if let OldFsObject::Folder(ref mut map) = fuck {
                 map
             } else {
                 panic!("fuck")
             }
         },
         Some(name) => {
-            if let FsObject::Folder(map) = fuck {
+            if let OldFsObject::Folder(map) = fuck {
                 get_mut_recursive(names, map.get_mut(name).expect("Fuck"))
             } else {
                 panic!("fuck")
@@ -73,10 +116,20 @@ fn get_mut_recursive<'a>(mut names: impl Iterator<Item=&'a String>, fuck: &mut F
     }
 }
 
-fn parse(text: &String) -> FsObject {
-    let mut root_fuck = FsObject::Folder(HashMap::new());
+
+
+
+fn parse_new(text: &String) -> Folder {
+    let mut root = Folder::default();
+    let mut current_dirs: Vec<String> = Vec::new();
+
+}
+
+
+fn parse(text: &String) -> OldFsObject {
+    let mut root_fuck = OldFsObject::Folder(HashMap::new());
     let mut current_fucks: Vec<String> = Vec::new();
-    get_mut_recursive(current_fucks.iter(), &mut root_fuck).insert("root".to_string(), FsObject::Folder(HashMap::new()));
+    get_mut_recursive(current_fucks.iter(), &mut root_fuck).insert("root".to_string(), OldFsObject::Folder(HashMap::new()));
     current_fucks.push("root".to_string());
 
 
@@ -100,7 +153,7 @@ fn parse(text: &String) -> FsObject {
                     current_fucks = vec!["root".to_string()];
                 } else {
                     let map = get_mut_recursive(current_fucks.iter(), &mut root_fuck);
-                    map.entry(arg.to_string()).or_insert(FsObject::Folder(HashMap::new()));
+                    map.entry(arg.to_string()).or_insert(OldFsObject::Folder(HashMap::new()));
                     current_fucks.push(arg.to_string());
                 }
             },
@@ -114,7 +167,7 @@ fn parse(text: &String) -> FsObject {
                         let file_size: u32 = words.next().unwrap().parse().expect("Std format expected");
                         let file_name = words.next().unwrap();
                         let map = get_mut_recursive(current_fucks.iter(), &mut root_fuck);
-                        map.insert(file_name.to_string(), FsObject::File(file_size));
+                        map.insert(file_name.to_string(), OldFsObject::File(file_size));
                     }
                 }
             },
