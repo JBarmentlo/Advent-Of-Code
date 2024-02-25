@@ -9,15 +9,12 @@ fn main() {
 }
 
 fn parse(text: &String) {
-    // let mut root = Folder::new_empty();
-    // let mut cwd = &mut root;
     let mut folder_names: Vec<String> = Vec::new();
     let mut files: HashMap<String, u32> = HashMap::new();
     let blocks = text.split("$ ")
         .skip(2);
 
     for block in blocks {
-        println!("{block}");
         let mut lines = block.lines();
         let command_line = lines.next().expect("every block has a first line").trim();
         let mut command_line_words = command_line.split_whitespace();
@@ -31,14 +28,19 @@ fn parse(text: &String) {
                 let arg = arg.expect("always arg for cd");
                 if arg == ".." {
                     folder_names.pop();
+                } else if arg == "/" {
+                    folder_names = Vec::new();
                 } else {
                     folder_names.push(arg.to_string());
                 }
+
                 let cwd = folder_names.join("/");
-                println!("\tcurrent_folder: {cwd}");
+                println!("current_folder: {cwd}");
             },
             
             "ls" => {
+                let cwd = folder_names.join("/");
+                println!("current_folder: {cwd}");
                 for line in respones_lines {
                     println!("\t{line}");
                     let trimmed_line = line.trim();
@@ -46,8 +48,10 @@ fn parse(text: &String) {
                         let mut words = trimmed_line.split_whitespace();
                         let file_size: u32 = words.next().unwrap().parse().expect("Std format expected");
                         let file_name = words.next().unwrap();
-                        let full_path = folder_names.join("/") + "/" + file_name;
-                        // println!("\t\tAdd: {full_path}: {file_size}");
+                        folder_names.push(file_name.to_string());
+                        let full_path = folder_names.join("/");
+                        folder_names.pop();
+                        println!("\t\tAdd: {full_path}: {file_size}");
                         files.insert(full_path, file_size);
                     }
                 }
@@ -71,8 +75,14 @@ enum FsContent {
 
 fn parse_file_map(files: HashMap<String, u32>){
     // Folder(files.iter().filter)
-    for (n, s) in files.iter() {
-        let count = n.split("/").count() - 2;
-        println!("{count} : {n}");
+    let mut keys: Vec<&String> = files.keys().collect();
+    keys.sort();
+    for key in keys {
+        let value = files.get(key).unwrap();
+        let count = key.split("/").count() - 1;
+        println!("{count} : {key} : {value}");
+
+
     }
+
 }
