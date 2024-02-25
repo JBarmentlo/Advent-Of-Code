@@ -1,5 +1,7 @@
 use std::collections::HashMap;
+use std::collections::hash_map::Iter;
 use std::fs;
+use std::iter::Filter;
 
 fn main() { 
     println!("Hello, world!");
@@ -69,11 +71,11 @@ fn parse(text: &String) {
 }
 
 enum FsContent {
-    File(u32),
-    Folder(HashMap<String, FsContent>)
+    File(String, u32),
+    Folder(String, Vec<FsContent>)
 }
 
-fn parse_file_map(files: HashMap<String, u32>){
+fn parse_file_map(files: HashMap<String, u32>) -> Vec<FsContent> {
     // Folder(files.iter().filter)
     let mut keys: Vec<&String> = files.keys().collect();
     keys.sort();
@@ -81,8 +83,28 @@ fn parse_file_map(files: HashMap<String, u32>){
         let value = files.get(key).unwrap();
         let count = key.split("/").count() - 1;
         println!("{count} : {key} : {value}");
-
-
     }
+    create_folder(files.iter().map(|(&k, &v)| (k.clone(), v)))
+    // files.iter()
+}
 
+fn is_dir(filename: &String) -> bool {
+    filename.split("/").count() == 1
+}
+// process_iterable<T: IntoIterator<Item = (String, u32)>>(iterable: T)
+// fn create_folder(mut filenames: Filter<Iter<String, u32>, _>) -> Vec<FsContent> {
+fn create_folder<T: Iterator<Item = (String, u32)> + Clone>(mut filenames: T) -> Vec<FsContent> {
+    filenames.clone().into_iter().map(
+        |(name, size)| {
+            if !is_dir(&name) {
+                FsContent::File(name.clone(), size)
+            } else {
+                let folder_name = name.split_once("/").unwrap().0;
+                FsContent::Folder(
+                    name.clone(), 
+                    create_folder(filenames.clone().filter(|(name, size)| name.starts_with(folder_name)).into_iter())
+                )
+            }
+        }
+    ).collect()
 }
