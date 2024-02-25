@@ -8,9 +8,12 @@ fn main() {
     println!("Hello, world!");
     let contents = fs::read_to_string("test_data.txt").expect("The file is static and is always parsable");
     // let contents = fs::read_to_string("data.txt").expect("The file is static and is always parsable");
-    let root = parse(&contents);
-    dbg!(&root);
-    let sum = sum_larger(&"".to_string(),0, &root, 100000);
+    let mut root = parse(&contents);
+    let mut target_list = vec!["root".to_string(), "a".to_string()];
+    let target_name = target_list.pop().expect("");
+    let root = get_mut_recursive(target_list.iter(), &mut root).get(&target_name).expect("msg");
+    dbg!(target_name, &root);
+    let sum = sum_larger(&root, 100000);
     dbg!(sum);
 }
 
@@ -27,44 +30,37 @@ fn println_recurse(depth: u32, text: &String) {
     println!("{text}");
 }
 
-fn sum_larger(name: &String, depth: u32, root: &Fuck, max_limit: u32) -> (u32, u32) {
+#[derive(Debug, Default)]
+struct SizeCounter {
+    total: u32,
+    counted: u32
+}
 
-
-    let total;
-    let counted;
+fn sum_larger(root: &Fuck, max_limit: u32) -> SizeCounter {
     match root {
         Fuck::File(size) => {
-            total = *size;
-            counted = *size;
+            SizeCounter{
+                total: *size, 
+                counted: 0
+            }
         },
         Fuck::Folder(map) => {
-            for _ in 0..depth {
-                print!("  ")
-            }
-            println!("{name}");
-            let out = map.iter()
-            .map(|(name, f)| {
-                let sum = sum_larger(name, depth + 1, f, max_limit);
-                (sum.0, sum.1, name, depth)
-            })
-            .fold((0, 0, "init", 0), |a, b| {
-                let total_size = a.0 + b.0;
-                let mut counted_size = b.1;
-                if a.1 < max_limit{
-                    counted_size = counted_size + a.1;
+            let mut out = map.iter()
+            .map(|(name, f)| sum_larger(f, max_limit))
+            .fold(
+                SizeCounter::default(), 
+                |a, b| SizeCounter{
+                    total: a.total + b.total,
+                    counted: a.counted + b.counted,
                 }
-                (total_size, counted_size, b.2, b.3)
-            });
-            total = out.0;
-            counted = out.1;
-        }
-    };
-    for _ in 0..depth {
-        print!("  ")
-    }
-    println!("{name} : ({total}, {counted}) ");
-    (total, counted)
+            );
+            if out.total < max_limit {
+                out.counted = out.counted + out.total;
+            }
 
+            out
+        }
+    }
 }
 
 fn get_mut_recursive<'a>(mut names: impl Iterator<Item=&'a String>, fuck: &mut Fuck) -> &mut HashMap<String, Fuck> {
@@ -106,7 +102,6 @@ fn parse(text: &String) -> Fuck {
         let arg = command_line_words.next();
         let respones_lines = lines;
 
-        println!("{command_line}");
         match cmd {
             "cd" => {
                 let arg = arg.expect("always arg for cd");
@@ -123,7 +118,6 @@ fn parse(text: &String) -> Fuck {
             
             "ls" => {
                 for line in respones_lines {
-                    println!("\t{line}");
                     let trimmed_line = line.trim();
                     
                     if !trimmed_line.starts_with("dir") {
@@ -137,61 +131,6 @@ fn parse(text: &String) -> Fuck {
             },
             _ => ()
         }
-        println!();
-        println!();
     }
     root_fuck
 }
-
-// enum FsContent {
-//     File(String, u32),
-//     Folder(String, Vec<FsContent>)
-// }
-
-// fn parse_file_map(files: HashMap<String, u32>) -> Vec<FsContent> {
-//     // Folder(files.iter().filter)
-//     let mut keys: Vec<&String> = files.keys().collect();
-//     keys.sort();
-//     for key in keys {
-//         let value = files.get(key).unwrap();
-//         let count = key.split("/").count() - 1;
-//         println!("{count} : {key} : {value}");
-//     }
-//     dbg!(&files);
-//     create_folder(files, 2)
-//     // files.iter()
-// }
-
-// fn is_dir(filename: &String) -> bool {
-//     let count = filename.split("/").count();
-//     println!("name: {filename}: {count}");
-    
-//     filename.split("/").count() > 1
-// }
-
-// // process_iterable<T: IntoIterator<Item = (String, u32)>>(iterable: T)
-// fn create_folder(filenames: HashMap<String, u32>, i: u32) -> Vec<FsContent> {
-// // fn create_folder<T: Iterator<Item = (String, u32)> + Clone>(mut filenames: T) -> Vec<FsContent> {
-//     if i == 0 {
-//         let mut r: Vec<FsContent> = Vec::new();
-//         r.push(FsContent::File("end".to_string(), 0));
-//         return r
-//     }
-//     println!();
-//     println!("Folder from: {i}");
-//     dbg!(&filenames);
-//     filenames.clone().drain().map(
-//         |(name, size)| {
-//             if !is_dir(&name) {
-//                 FsContent::File(name.clone(), size)
-//             } else {
-//                 let folder_name = name.split_once("/").unwrap().0;
-//                 let folder_filenames = filenames.clone().drain().filter(|(name, size)| name.starts_with(folder_name)).collect();
-//                 FsContent::Folder(
-//                     name.clone(), 
-//                     create_folder(folder_filenames, i - 1)
-//                 )
-//             }
-//         }
-//     ).collect()
-// }
