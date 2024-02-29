@@ -84,11 +84,14 @@ struct SizeCounter {
 
 fn main() { 
     println!("Hello, world!");
-    let contents = fs::read_to_string("data.txt").expect("The file is static and is always parsable");
+    let contents = fs::read_to_string("test_data.txt").expect("The file is static and is always parsable");
     // let root = parse(&contents);
     let root = parse(&contents);
-    let sum = sum_folders_smaller_than(&root, 100000);
-    println!("The first answer is {0}", sum.counted);
+    let mut root_fs = FsObject::Folder(root);
+    comput_folder_sizes(&mut root_fs);
+    dbg!(&root_fs);
+    
+    // println!("The first answer is {0}", sum.counted);
 
     // let total_space: i32 = 70000000;
     // let required_space: i32  = 30000000;
@@ -97,31 +100,44 @@ fn main() {
 
 }
 
-
-fn sum_folders_smaller_than(root: &FsObject, max_limit: u32) -> (FsObject, u32) {
-    let counted = match root {
-        FsObject::File(file) => {
-            0
-        },
-        FsObject::Folder(folder) => {
-            folder.contents.values()
-            .map(|f| sum_folders_smaller_than(f, max_limit))
-            .fold(
-                (FsObject::new_file(0, 0), 0),
-                |(fs_a, total_a), (fs_b, total_b)| {
-                    let mut total = total_a + total_b;
-                    match fs_a {
-                        FsObject::Folder(folder) => {
-                            total += folder.size;
-                            
-                        }
-                        
-
-                    }
-                }
-            
-        }
+fn comput_folder_sizes(root: &mut FsObject) -> &FsObject {
+    if let FsObject::Folder(folder) = root {
+        folder.size = Some(folder.contents.values_mut()
+        .map(|f| comput_folder_sizes(f))
+        .map(|f| {
+            match f {
+                FsObject::Folder(folder) => folder.size.expect("am i stoopid"),
+                FsObject::File(file) => file.size
+            }
+        })
+        .sum()
+    )
     }
+    root
+}
+
+fn find_smallest_folder_bigger_than(root: &Folder, limit: u32) -> &FsObject {
+    root.contents.values().filter_map(|f| match f {
+        FsObject::File(_) => None,
+        FsObject::Folder(folder) => Some(folder)
+    })
+    .map(|f| find_smallest_folder_bigger_than(f, limit))
+    .fold(FsObject::File(File::default()), |a, b| {
+        match (a, b) {
+            (FsObject::File(_), _) => b,
+            (FsObject::Folder(_), FsObject::File(_)) => a,
+            (FsObject::Folder(f_a), FsObject::Folder(f_b)) => {
+                if  f_a.size.expect("This should be called after they're resolved") < limit {
+                    b
+                } else if (f_b.size < f_a.size) && (f_b.size > Some(limit)) {
+                    b
+                } else {
+                    a
+                }
+            }
+        }
+    })
+    // .map(|ref mut f| sum_folders_smaller_than(f, max_limit));
 }
 
 fn parse(text: &String) -> Folder {
