@@ -14,23 +14,6 @@ enum FsObject {
     Folder(Folder)
 }
 
-impl FsObject {
-    fn new_folder(name: String) -> FsObject {
-        FsObject::Folder(Folder::from_name(name))
-    }
-
-    fn new_file(name: String, size: u32) -> FsObject {
-        FsObject::File(File{name, size})
-    }
-
-    fn add_folder(&mut self, folder_to_add: Folder) {
-        match self {
-            FsObject::Folder(ref mut folder) => folder.contents.insert(folder_to_add.name.clone(), FsObject::Folder(folder_to_add)),
-            _ => panic!("trying to insert into file")
-        };
-    }
-}
-
 #[derive(Debug, Default)]
 struct Folder {
     name: String,
@@ -76,11 +59,6 @@ struct File {
     size: u32,
 }
 
-#[derive(Debug, Default)]
-struct SizeCounter {
-    total: u32,
-    counted: u32
-}
 
 fn main() { 
     println!("Hello, world!");
@@ -90,14 +68,13 @@ fn main() {
     let mut root_fs = FsObject::Folder(root);
     comput_folder_sizes(&mut root_fs);
     dbg!(&root_fs);
+    let missing_space: u32 = 94000;
+    println!("Missing space: {missing_space}");
+    if let FsObject::Folder(root) = root_fs {
+        let smol = find_smallest_folder_bigger_than(&root, missing_space);
+        dbg!(&smol);
+    }
     
-    // println!("The first answer is {0}", sum.counted);
-
-    // let total_space: i32 = 70000000;
-    // let required_space: i32  = 30000000;
-    // let missing_space: i32 = required_space - total_space + sum.total as i32;
-    // println!("Missing space: {missing_space}");
-
 }
 
 fn comput_folder_sizes(root: &mut FsObject) -> &FsObject {
@@ -110,35 +87,71 @@ fn comput_folder_sizes(root: &mut FsObject) -> &FsObject {
                 FsObject::File(file) => file.size
             }
         })
-        .sum()
-    )
+        .sum())
     }
     root
 }
 
-fn find_smallest_folder_bigger_than(root: &Folder, limit: u32) -> &FsObject {
-    root.contents.values().filter_map(|f| match f {
-        FsObject::File(_) => None,
-        FsObject::Folder(folder) => Some(folder)
+fn find_smallest_folder_bigger_than(root: &Folder, limit: u32) -> Option<&Folder> {
+    root.contents.values()
+    .filter_map(|e| match e {
+        FsObject::Folder(f) => Some(f),
+        _ => None,
     })
     .map(|f| find_smallest_folder_bigger_than(f, limit))
-    .fold(FsObject::File(File::default()), |a, b| {
+    .chain(std::iter::once(Some(root)))
+    .fold(None, |a, b| {
+        let best;
+        dbg!(a, b);
         match (a, b) {
-            (FsObject::File(_), _) => b,
-            (FsObject::Folder(_), FsObject::File(_)) => a,
-            (FsObject::Folder(f_a), FsObject::Folder(f_b)) => {
-                if  f_a.size.expect("This should be called after they're resolved") < limit {
-                    b
-                } else if (f_b.size < f_a.size) && (f_b.size > Some(limit)) {
-                    b
+            (None, _) => best = b,
+            (_, None) => best = a,
+            (Some(f_a), Some(f_b)) => {
+                if (f_a.size.expect("unwrapped") < limit) || (limit..f_a.size.expect("unwrapped")).contains(&f_b.size.expect("unwrapped")) {
+                    best = b;
                 } else {
-                    a
+                    best = a;
                 }
             }
-        }
+        };
+        dbg!(best);
+        println!();
+        return best;
     })
-    // .map(|ref mut f| sum_folders_smaller_than(f, max_limit));
 }
+
+// fn find_smallest_folder_bigger_than(root: &FsObject, limit: u32) -> &FsObject {
+//     match root {
+//         FsObject::File(_) => root,
+//         FsObject::Folder(folder) => {
+//             folder.contents.values()
+//             .map(|f| find_smallest_folder_bigger_than(f, limit))
+//             .fold(None, |a, b| {
+//                 dbg!(a, b);
+//                 println!();
+//                 match a {
+//                     None => Some(b),
+//                     Some(a) => {
+//                         match (a, b) {
+//                             (FsObject::File(_), _) => Some(b),
+//                             (FsObject::Folder(_), FsObject::File(_)) => Some(a),
+//                             (FsObject::Folder(f_a), FsObject::Folder(f_b)) => {
+//                                 if  f_a.size.expect("This should be called after they're resolved") < limit {
+//                                     Some(b)
+//                                 } else if (f_b.size < f_a.size) && (f_b.size > Some(limit)) {
+//                                     Some(b)
+//                                 } else {
+//                                     Some(a)
+//                                 }
+//                             }
+//                         }
+//                     }
+//                 }
+//             })
+//             .unwrap_or(root)
+//         }
+//     }
+// }
 
 fn parse(text: &String) -> Folder {
     let mut root = Folder::from_name("root".to_string());
