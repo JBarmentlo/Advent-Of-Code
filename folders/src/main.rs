@@ -1,12 +1,6 @@
 use std::collections::HashMap;
 use std::fs;
 
-#[derive(Debug)]
-enum OldFsObject { 
-    File(u32),
-    Folder(HashMap<String, OldFsObject>)
-}
-
 
 #[derive(Debug)]
 enum FsObject { 
@@ -64,32 +58,25 @@ fn main() {
     println!("Hello, world!");
     let contents = fs::read_to_string("test_data.txt").expect("The file is static and is always parsable");
     // let root = parse(&contents);
-    let root = parse(&contents);
-    let mut root_fs = FsObject::Folder(root);
-    comput_folder_sizes(&mut root_fs);
-    dbg!(&root_fs);
+    let mut root = parse(&contents);
+    comput_folder_sizes(&mut root);
+    dbg!(&root);
     let missing_space: u32 = 94000;
     println!("Missing space: {missing_space}");
-    if let FsObject::Folder(root) = root_fs {
-        let smol = find_smallest_folder_bigger_than(&root, missing_space);
-        dbg!(&smol);
-    }
-    
+    let smol = find_smallest_folder_bigger_than(&root, missing_space);
+    dbg!(&smol);
 }
 
-fn comput_folder_sizes(root: &mut FsObject) -> &FsObject {
-    if let FsObject::Folder(folder) = root {
-        folder.size = Some(folder.contents.values_mut()
-        .map(|f| comput_folder_sizes(f))
-        .map(|f| {
-            match f {
-                FsObject::Folder(folder) => folder.size.expect("am i stoopid"),
-                FsObject::File(file) => file.size
-            }
-        })
-        .sum())
-    }
-    root
+fn comput_folder_sizes(root: &mut Folder) {
+    root.size = root.contents.values_mut()
+    .map(|f| match f {
+        FsObject::Folder(ref mut folder) => {
+            comput_folder_sizes(folder);
+            folder.size
+        },
+        FsObject::File(file) => Some(file.size),
+    })
+    .sum()
 }
 
 fn find_smallest_folder_bigger_than(root: &Folder, limit: u32) -> Option<&Folder> {
@@ -118,6 +105,16 @@ fn find_smallest_folder_bigger_than(root: &Folder, limit: u32) -> Option<&Folder
         println!();
         return best;
     })
+}
+
+fn sum_directories_smaller_than(root: &Folder, limit: u32) -> u32 {
+    root.contents.values()
+    .filter_map(|e| match e {
+        FsObject::Folder(f) => Some(f),
+        _ => None,
+    })
+    .map(|f| sum_directories_smaller_than(f, limit))
+    .filter()
 }
 
 // fn find_smallest_folder_bigger_than(root: &FsObject, limit: u32) -> &FsObject {
