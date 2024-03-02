@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fs;
+use std::process::exit;
 
 
 #[derive(Debug)]
@@ -57,12 +58,25 @@ struct File {
 fn main() { 
     println!("Hello, world!");
     let contents = fs::read_to_string("test_data.txt").expect("The file is static and is always parsable");
-    // let root = parse(&contents);
+    
     let mut root = parse(&contents);
     comput_folder_sizes(&mut root);
+    // TODO: handle emtpy fs
     dbg!(&root);
-    let missing_space: u32 = 94000;
+
+    let sum = sum_directories_smaller_than(&root, 100000);
+    println!("Sum: {sum}");
+    
+    let total_space = 70000000;
+    let needed_space = 30000000;
+    let available_space = total_space - root.size.expect("computed");
+    if available_space > needed_space {
+        println!("You have enough space");
+        exit(0);
+    }
+    let missing_space: u32 = needed_space - available_space;
     println!("Missing space: {missing_space}");
+
     let smol = find_smallest_folder_bigger_than(&root, missing_space);
     dbg!(&smol);
 }
@@ -89,7 +103,7 @@ fn find_smallest_folder_bigger_than(root: &Folder, limit: u32) -> Option<&Folder
     .chain(std::iter::once(Some(root)))
     .fold(None, |a, b| {
         let best;
-        dbg!(a, b);
+        // dbg!(a, b);
         match (a, b) {
             (None, _) => best = b,
             (_, None) => best = a,
@@ -101,54 +115,28 @@ fn find_smallest_folder_bigger_than(root: &Folder, limit: u32) -> Option<&Folder
                 }
             }
         };
-        dbg!(best);
-        println!();
+        // dbg!(best);
+        // println!();
         return best;
     })
 }
 
 fn sum_directories_smaller_than(root: &Folder, limit: u32) -> u32 {
-    root.contents.values()
+    let lower_ranks = root.contents.values()
     .filter_map(|e| match e {
         FsObject::Folder(f) => Some(f),
         _ => None,
     })
     .map(|f| sum_directories_smaller_than(f, limit))
-    .filter()
+    .sum();
+
+    if root.size.expect("computed") < limit {
+        root.size.expect("computed") + lower_ranks
+    } else {
+        lower_ranks
+    }
 }
 
-// fn find_smallest_folder_bigger_than(root: &FsObject, limit: u32) -> &FsObject {
-//     match root {
-//         FsObject::File(_) => root,
-//         FsObject::Folder(folder) => {
-//             folder.contents.values()
-//             .map(|f| find_smallest_folder_bigger_than(f, limit))
-//             .fold(None, |a, b| {
-//                 dbg!(a, b);
-//                 println!();
-//                 match a {
-//                     None => Some(b),
-//                     Some(a) => {
-//                         match (a, b) {
-//                             (FsObject::File(_), _) => Some(b),
-//                             (FsObject::Folder(_), FsObject::File(_)) => Some(a),
-//                             (FsObject::Folder(f_a), FsObject::Folder(f_b)) => {
-//                                 if  f_a.size.expect("This should be called after they're resolved") < limit {
-//                                     Some(b)
-//                                 } else if (f_b.size < f_a.size) && (f_b.size > Some(limit)) {
-//                                     Some(b)
-//                                 } else {
-//                                     Some(a)
-//                                 }
-//                             }
-//                         }
-//                     }
-//                 }
-//             })
-//             .unwrap_or(root)
-//         }
-//     }
-// }
 
 fn parse(text: &String) -> Folder {
     let mut root = Folder::from_name("root".to_string());
@@ -196,4 +184,45 @@ fn parse(text: &String) -> Folder {
         }
     }
     root
+}
+
+#[cfg(test)]
+mod tests {
+    // Import the necessary modules
+    use std::fs::OpenOptions;
+    use std::io::Write;
+
+    // This test writes to a file
+    #[test]
+    fn test_file() {
+        // Opens the file ferris.txt or creates one if it doesn't exist.
+        let mut file = OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open("ferris.txt")
+            .expect("Failed to open ferris.txt");
+
+        // Print "Ferris" 5 times.
+        for _ in 0..5 {
+            file.write_all("Ferris\n".as_bytes())
+                .expect("Could not write to ferris.txt");
+        }
+    }
+
+    // This test tries to write to the same file
+    #[test]
+    fn test_file_also() {
+        // Opens the file ferris.txt or creates one if it doesn't exist.
+        let mut file = OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open("ferris.txt")
+            .expect("Failed to open ferris.txt");
+
+        // Print "Corro" 5 times.
+        for _ in 0..5 {
+            file.write_all("Corro\n".as_bytes())
+                .expect("Could not write to ferris.txt");
+        }
+    }
 }
