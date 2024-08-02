@@ -20,8 +20,8 @@ impl Error for InvalidDataError {}
 
 fn main() -> Result<(), InvalidDataError> {
     println!("Hello, world!");
-    // let data = read_file_content("./data.txt");
-    let data = read_file_content("./test_data.txt");
+    let data = read_file_content("./data.txt");
+    // let data = read_file_content("./test_data.txt");
     match data {
         Err(err) => {
             println!("Error: {}", err);
