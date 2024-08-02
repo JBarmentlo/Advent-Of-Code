@@ -10,6 +10,21 @@ struct Point {
     y: i32,
 }
 
+impl Point {
+    fn follow(self, other: Point) -> Point {
+        let diff = other - self;
+
+        if diff.x.abs() > 1 || diff.y.abs() > 1 {
+            self + Point {
+                    x: diff.x.signum(),
+                    y: diff.y.signum()
+                }
+        } else {
+            self
+        }
+    }
+}
+
 impl Add for Point {
     type Output = Self;
 
@@ -54,9 +69,6 @@ impl Mul<i32> for Point {
     }
 }
 
-
-
-
 impl Add<Direction> for Point {
     type Output = Self;
 
@@ -64,6 +76,7 @@ impl Add<Direction> for Point {
         self + direction.to_point()
     }
 }
+
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Direction {
@@ -84,33 +97,35 @@ impl Direction {
     }
 }
 
+
 #[derive(Debug, Clone, Copy, PartialEq)]
-struct Rope {
-    tail: Point,
-    head: Point,
+struct Rope<const T: usize> {
+    knots: [Point; T]
 }
 
-impl Add<Direction> for Rope {
+impl<const T: usize> Rope<T> {
+    fn new() -> Self {
+        Rope {
+            knots: [Point { x: 0, y: 0 }; T],
+        }
+    }
+}
+
+
+impl<const T: usize> Add<Direction> for Rope<T> {
     type Output = Self;
 
     fn add(self, direction: Direction) -> Self {
-        let diff = (self.head + direction - self.tail);
-        // dbg!(self.head, self.head + direction, self.tail, &diff);
-        if diff.x.abs() > 1 || diff.y.abs() > 1 {
-            Self {
-                tail: self.tail + Point {
-                    x: diff.x.signum(),
-                    y: diff.y.signum()
-                },
-                head: self.head + direction,
-            }
-        } else {
-            Self {
-                tail: self.tail,
-                head: self.head + direction,
-            }
+        let mut new_points = self.knots;
+    
+        new_points[0] = self.knots[0] + direction;
+        for i in 1..new_points.len() {
+            new_points[i] = new_points[i].follow(new_points[i - 1]);
         }
 
+        Rope {
+            knots: new_points
+        }
     }
 }
 
@@ -152,18 +167,15 @@ fn parse_directions(filename: &str) -> io::Result<Vec<Direction>> {
 fn main() -> io::Result<()> {
     let directions = parse_directions("data.txt")?;
     let mut tail_positions: HashSet::<Point> = HashSet::new();
-    let mut current_position: Rope = Rope {
-        tail: Point { x: 0, y: 0 },
-        head: Point { x: 0, y: 0 },
-    };
+    let mut rope: Rope<10> = Rope::<10>::new();
 
-    println!("Starting position: {:?}", current_position);
+    println!("Starting position: {:?}", rope);
 
     for (i, &direction) in directions.iter().enumerate() {
-        current_position = current_position + direction;
+        rope = rope + direction;
 
-        println!("Direction: {:?}. New Position {:?}", direction, current_position);
-        tail_positions.insert(current_position.tail);
+        println!("Direction: {:?}. New Position {:?}", direction, rope);
+        tail_positions.insert(rope.knots[9]);
 
     }
 
