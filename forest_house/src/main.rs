@@ -1,136 +1,139 @@
-use grid::Grid;
 use std::fs::File;
-use std::io::{self, Read};
+use std::io::{BufRead, BufReader};
+use grid::Grid;
 
-use std::error::Error;
-use std::{fmt, usize};
+fn parse_grid(filename: &str) -> Grid<u32> {
+    let file = File::open(filename).expect("Failed to open file");
+    let reader = BufReader::new(file);
+    let mut data = Vec::new();
+    let mut width = 0;
 
-#[derive(Debug)]
-struct InvalidDataError(String);
-
-impl fmt::Display for InvalidDataError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl Error for InvalidDataError {}
-
-
-
-fn main() -> Result<(), InvalidDataError> {
-    println!("Hello, world!");
-    let data = read_file_content("./data.txt");
-    // let data = read_file_content("./test_data.txt");
-    match data {
-        Err(err) => {
-            println!("Error: {}", err);
-            Err(InvalidDataError("Couldn't read input".to_string()))
-        },
-        Ok(res) => {
-            initialize(res)
+    for line in reader.lines() {
+        let line = line.expect("Failed to read line");
+        if width == 0 {
+            width = line.len();
         }
+        data.extend(line.chars().map(|c| c.to_digit(10).unwrap()));
     }
+
+    Grid::from_vec(data, width)
 }
 
+fn count_visible_trees(heights: &Grid<u32>) -> usize {
+    let rows = heights.rows();
+    let cols = heights.cols();
+    let mut visible = Grid::init(rows, cols, false);
 
-fn read_file_content(path: &str) -> io::Result<String> {
-    let mut file = File::open(path)?;
-    let mut content = String::new();
-    file.read_to_string(&mut content)?;
-    Ok(content)
-}
+    // Mark edge trees as visible
+    for i in 0..rows {
+        visible[(i, 0)] = true;
+        visible[(i, cols - 1)] = true;
+    }
+    for j in 0..cols {
+        visible[(0, j)] = true;
+        visible[(rows - 1, j)] = true;
+    }
 
-fn get_grid_size(data: &String) -> Result<usize, InvalidDataError> {
-    // let height = data.lines().count() + 1;
-    let width = data.lines().next().ok_or(InvalidDataError("No lines to read".to_string())).map(|line| line.len())?;
+    // Check visibility from left and right
+    for i in 1..rows - 1 {
+        let mut max_left = heights[(i, 0)];
+        let mut max_right = heights[(i, cols - 1)];
 
-    return Ok(width)
-}
-
-fn initialize(data: String) -> Result<(), InvalidDataError> {
-    let width = get_grid_size(&data)?;
-    let data: Vec<u32> = data.chars().filter_map(|c| c.to_digit(10)).collect();
-    let heights = Grid::from_vec(data, width);
-    dbg!(&heights);
-    let visibles = compoot(heights);
-    let total = visibles.flatten().iter().filter(|v| **v).count();
-    dbg!(total);
-    Ok(())
-}
-
-fn compoot(heights: Grid<u32>) -> Grid<bool> {
-    let mut visibles = Grid::init(heights.rows(), heights.cols(), false);
-    for i in 0..heights.rows() {
-        let mut max = None::<u32>;
-        let mut last_col = 0;
-
-        for j in 0..heights.cols() {
-            match max {
-                None => {
-                    visibles[(i, j)] = true;
-                    max = Some(heights[(i, j)]);
-                },
-                Some(val) => {
-                    if heights[(i, j)] > val {
-                        visibles[(i, j)] = true;
-                        max = Some(heights[(i, j)]);
-                        last_col = j;
-                    }
-                }
+        for j in 1..cols - 1 {
+            if heights[(i, j)] > max_left {
+                visible[(i, j)] = true;
+                max_left = heights[(i, j)];
             }
-        }
-        let mut max = None::<u32>;
-        for j in (last_col..heights.cols()).rev() {
-            match max {
-                None => {
-                    visibles[(i, j)] = true;
-                    max = Some(heights[(i, j)]);
-                },
-                Some(val) => {
-                    if heights[(i, j)] > val {
-                        visibles[(i, j)] = true;
-                        max = Some(heights[(i, j)]);
-                    }
-                }
+            if heights[(i, cols - 1 - j)] > max_right {
+                visible[(i, cols - 1 - j)] = true;
+                max_right = heights[(i, cols - 1 - j)];
             }
         }
     }
-    
-    for j in 0..heights.cols() {
-        let mut max = None::<u32>;
-        let mut last_row = 0;
-        for i in 0..heights.rows() {
-            match max {
-                None => {
-                    visibles[(i, j)] = true;
-                    max = Some(heights[(i, j)]);
-                },
-                Some(val) => {
-                    if heights[(i, j)] > val {
-                        visibles[(i, j)] = true;
-                        max = Some(heights[(i, j)]);
-                        last_row = i;
-                    }
-                }
+
+    // Check visibility from top and bottom
+    for j in 1..cols - 1 {
+        let mut max_top = heights[(0, j)];
+        let mut max_bottom = heights[(rows - 1, j)];
+
+        for i in 1..rows - 1 {
+            if heights[(i, j)] > max_top {
+                visible[(i, j)] = true;
+                max_top = heights[(i, j)];
             }
-        }
-        let mut max = None::<u32>;
-        for i in (last_row..heights.rows()).rev() {
-            match max {
-                None => {
-                    visibles[(i, j)] = true;
-                    max = Some(heights[(i, j)]);
-                },
-                Some(val) => {
-                    if heights[(i, j)] > val {
-                        visibles[(i, j)] = true;
-                        max = Some(heights[(i, j)]);
-                    }
-                }
+            if heights[(rows - 1 - i, j)] > max_bottom {
+                visible[(rows - 1 - i, j)] = true;
+                max_bottom = heights[(rows - 1 - i, j)];
             }
         }
     }
-    dbg!(&visibles);
-    visibles
+
+    // Count visible trees
+    visible.iter().filter(|&&x| x).count()
+}
+
+fn calculate_scenic_score(heights: &Grid<u32>, row: usize, col: usize) -> usize {
+    let rows = heights.rows();
+    let cols = heights.cols();
+    let height = heights[(row, col)];
+
+    let mut left = 0;
+    for j in (0..col).rev() {
+        left += 1;
+        if heights[(row, j)] >= height {
+            break;
+        }
+    }
+
+    let mut right = 0;
+    for j in col + 1..cols {
+        right += 1;
+        if heights[(row, j)] >= height {
+            break;
+        }
+    }
+
+    let mut up = 0;
+    for i in (0..row).rev() {
+        up += 1;
+        if heights[(i, col)] >= height {
+            break;
+        }
+    }
+
+    let mut down = 0;
+    for i in row + 1..rows {
+        down += 1;
+        if heights[(i, col)] >= height {
+            break;
+        }
+    }
+
+    left * right * up * down
+}
+
+fn highest_scenic_score(heights: &Grid<u32>) -> usize {
+    let rows = heights.rows();
+    let cols = heights.cols();
+    let mut max_score = 0;
+
+    for i in 0..rows {
+        for j in 0..cols {
+            let score = calculate_scenic_score(heights, i, j);
+            if score > max_score {
+                max_score = score;
+            }
+        }
+    }
+
+    max_score
+}
+
+fn main() {
+    let heights = parse_grid("data.txt");
+    let visible_trees = count_visible_trees(&heights);
+    println!("Number of visible trees: {}", visible_trees);
+
+    let max_scenic_score = highest_scenic_score(&heights);
+    println!("Highest scenic score: {}", max_scenic_score);
 }
