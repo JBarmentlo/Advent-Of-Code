@@ -1,12 +1,9 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 use std::fs::File;
-use std::io::{self, BufRead, BufReader};
+use std::io::{self, BufRead};
 use std::path::Path;
 
-const MAX_EXE_TIME: usize = 2;
-
-
-#[derive(Hash, Eq, PartialEq, Debug)]
+#[derive(Hash, Eq, PartialEq, Debug, Copy, Clone)]
 enum Instruction {
     noop,
     addx(i32),
@@ -23,26 +20,65 @@ impl Instruction {
 
 #[derive(Debug)]
 struct Cpu {
-    instructions: VecDeque<Vec<Instruction>>,
-    // registers: HashMap<String, i32>,
+    queue: VecDeque::<Instruction>,
+    instruction: Option<Instruction>,
+    waiting_time: Option<usize>,
     x: i32,
+    cycle: i32,
 }
 
 impl Cpu {
-    fn Execute(&mut self, instruction: Instruction) {
+    fn execute(&mut self, instruction: Instruction) {
         match instruction {
-            Instruction::noop => {print!("Noop ");},
+            Instruction::noop => {println!("Noop ");},
             Instruction::addx(v) => {
                 self.x += v;
-                print!("Addx {} ", &v);
+                println!("Addx {} ", &v);
             },
         }
     }
 
-    fn Cycle(&mut self) {
-        if let Some(instructions) = self.instructions.pop_front() {
-            instructions.into_iter().for_each(|i| self.Execute(i));
-            // self.instructions.push_back(Vec::new());
+    fn cycle(&mut self) {
+        if let None = self.instruction {
+            self.prime();
+        }
+        if let Some(instruction) = self.instruction {
+            match self.waiting_time {
+                Some(0) => {
+                    panic!("This should never happen");
+                }
+                Some(1) => {
+                    self.execute(instruction);
+                    self.instruction = None;
+                    self.waiting_time = None;
+                },
+                Some(v) => {
+                    self.waiting_time = Some(v - 1);
+                },
+                None => {
+                    println!("Cycling THE VOID");
+                }
+            }
+        }
+        self.cycle += 1;
+    }
+
+    fn get_signal_strength(&self) -> i32 {
+        self.x * self.cycle
+    }
+
+    fn prime(&mut self) {
+        match self.instruction {
+            None => {
+                self.instruction = self.queue.pop_front();
+                if let Some(instruction) = self.instruction {
+                    println!("Starting {:?}", instruction);
+                    self.waiting_time = Some(instruction.get_execution_time());
+                }
+            },
+            
+            Some(_) => {
+            },
         }
     }
 }
@@ -84,7 +120,9 @@ fn parse_line(line: &String) -> Option<Instruction> {
 }
 
 fn read_file() -> Result<Vec<String>, io::Error>  {
-    let filename = "test_data.txt";
+    let filename = "test_data_2.txt";
+    // let filename = "test_data.txt";
+    // let filename = "data.txt";
     let path = Path::new(filename);
     let file = File::open(path)?;
     let reader = io::BufReader::new(file);
@@ -99,51 +137,44 @@ fn read_file() -> Result<Vec<String>, io::Error>  {
 fn main() -> Result<(), io::Error>{
     let input_lines = read_file()?;
     let input_lines = input_lines.iter();
-    let mut signal_strengths = Vec::new();
-    let mut cycle: i32 = 1;
+    let instructions: VecDeque::<Instruction> = input_lines.filter_map(|l| parse_line(l)).collect();
+
+    let mut signal_strengths: Vec<i32> = Vec::new();
 
     let mut cpu = Cpu {
-        instructions: VecDeque::with_capacity(MAX_EXE_TIME),
-        x: 1
+        queue: instructions,
+        instruction: None,
+        waiting_time: None,
+        x: 1,
+        cycle: 1,
     };
-    for _ in 0..MAX_EXE_TIME {
-        cpu.instructions.push_front(Vec::new());
-    }
+    // cpu.prime();
+    // dbg!(&cpu);
 
-    for line in input_lines {
-        println!("Cycle {}, x {}, str {:?}", cycle, cpu.x, signal_strengths.last());
-        // cpu.Cycle();
-        cpu.instructions.push_back(Vec::new());
-        if let Some(instruction) = parse_line(&line) {
-            let cycle: usize = cycle.try_into().unwrap();
-            if let Some(vec) = cpu.instructions.get_mut(instruction.get_execution_time() - 1 + cycle - 1) {
-                vec.push(instruction);
-            } else {
-                panic!("CACA");
-            }
-        }
-        cycle += 1;
+    while !cpu.queue.is_empty() {
+        println!("Start Cycle {}", cpu.cycle);
+        cpu.cycle();
+        signal_strengths.push(cpu.get_signal_strength());
+        println!("x {}, stren {:?}", cpu.x, cpu.get_signal_strength());
+        println!("");
     }
-    dbg!(&cpu);
-
-    cycle = 1;
-    while !cpu.instructions.is_empty() {
-        print!("Cycle: {}. ", cycle);
-        cpu.Cycle();
-        print!("x: {}", cpu.x);
-        signal_strengths.push(cpu.x * cycle);
-        cycle += 1;        
+    while let Some(_) = cpu.instruction {
+        println!("Start Cycle {}", cpu.cycle);
+        cpu.cycle();
+        signal_strengths.push(cpu.get_signal_strength());
+        println!("x {}, stren {:?}", cpu.x, cpu.get_signal_strength());
         println!("");
     }
 
-    let sum: i32 = signal_strengths.iter()
+
+    let signal_strengths: Vec<i32> = signal_strengths.iter()
     .enumerate()
     .filter(|(i, _)| (i + 1) % 40 == 20)
     .map(|(_, &val)| val)
-    .sum();
-
-    // dbg!(&cpu);
-    // dbg!(&signal_strengths);
-    println!("Sum {}", sum);
+    .collect();
+    dbg!(&signal_strengths);
+    let sum: i32 = signal_strengths.into_iter().sum();
+    println!("{}", sum);
     Ok(())
 }
+
