@@ -1,17 +1,21 @@
-use std::{collections::{HashMap, VecDeque}, string};
+use std::collections::{HashMap, VecDeque};
+use std::fs::File;
+use std::io::{self, BufRead, BufReader};
+use std::path::Path;
 
-
+#[derive(Debug)]
 enum Instruction {
     noop,
     addx(i32),
 }
 
+#[derive(Debug)]
 struct Cpu {
     instructions: VecDeque<Vec<i32>>,
     registers: HashMap<String, i32>,
 }
 
-fn parse_line(line: &str) -> Option<Instruction> {
+fn parse_line(line: &String) -> Option<Instruction> {
     let tokens = line.trim().split_whitespace().collect::<Vec<&str>>();  // Split by whitespace (adjust if needed)
     
     if tokens.len() == 0 {
@@ -46,16 +50,29 @@ fn parse_line(line: &str) -> Option<Instruction> {
     }
 }
 
-fn main() {
-    let instruction_string = "noop\naddx 3\naddx -5";
+fn read_file() -> Result<Vec<String>, io::Error>  {
+    let filename = "test_data.txt";
+    let path = Path::new(filename);
+    let file = File::open(path)?;
+    let reader = io::BufReader::new(file);
 
-    // 1.  Tokenization: Break down the string into parts (instructions)
-    // let mut instructions = Vec::new(); 
-    let lines = instruction_string.lines(); // For each instruction, you can use `match` for better error handling.
+    Ok(
+        reader.lines()
+        .filter_map(Result::ok)
+        .collect()
+    )
+}
 
-    for line in lines {
-        let instruction: Option<Instruction> = parse_line(line);
+fn main() -> Result<(), io::Error>{
+    let input_lines = read_file()?;
+
+    let mut instructions: Vec<Instruction> = Vec::new(); 
+    for line in input_lines {
+        if let Some(instruction) = parse_line(&line) {
+            instructions.push(instruction);
+        }
     }
-
+    dbg!(instructions);
+    Ok(())
 }
 
