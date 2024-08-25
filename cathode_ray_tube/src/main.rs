@@ -3,28 +3,48 @@ use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::path::Path;
 
+const MAX_EXE_TIME: usize = 2;
+
+
 #[derive(Hash, Eq, PartialEq, Debug)]
 enum Instruction {
     noop,
     addx(i32),
 }
 
+impl Instruction {
+    fn get_execution_time(&self) -> usize {
+        match self {
+            Instruction::noop => 1,
+            Instruction::addx(_) => 2,
+        }
+    }
+}
+
 #[derive(Debug)]
 struct Cpu {
-    instructions: VecDeque<Vec<i32>>,
+    instructions: VecDeque<Vec<Instruction>>,
     registers: HashMap<String, i32>,
 }
 
 impl Cpu {
-    fn Execute(mut self, instruction: Instruction) {
+    fn Execute(&mut self, instruction: Instruction) {
         match instruction {
-            Instruction::noop => {},
+            Instruction::noop => {println!("Noop");},
             Instruction::addx(v) => {
-                self.registers
+                let new_val = self.registers
                 .entry("x".to_string())
                 .and_modify(|x| *x += v)
                 .or_insert(v);
+                println!("Addx {}. X: {}", &v, new_val);
             },
+        }
+    }
+
+    fn Cycle(&mut self) {
+        if let Some(instructions) = self.instructions.pop_front() {
+            instructions.into_iter().for_each(|i| self.Execute(i));
+            self.instructions.push_back(Vec::new());
         }
     }
 }
@@ -35,6 +55,7 @@ fn parse_line(line: &String) -> Option<Instruction> {
     if tokens.len() == 0 {
         return None
     }
+
     match tokens[0] { 
         "addx" => {
             if tokens.len() != 2 {
@@ -79,21 +100,31 @@ fn read_file() -> Result<Vec<String>, io::Error>  {
 
 fn main() -> Result<(), io::Error>{
     let input_lines = read_file()?;
-
-    let mut instructions: Vec<Instruction> = Vec::new(); 
-    for line in input_lines {
-        if let Some(instruction) = parse_line(&line) {
-            instructions.push(instruction);
-        }
-    }
+    let input_lines = input_lines.iter();
 
     let mut cpu = Cpu {
-        instructions: VecDeque::from([vec![], vec![]]),
+        instructions: VecDeque::with_capacity(MAX_EXE_TIME),
         registers: HashMap::from([("x".to_string(), 0)]),
     };
+    for _ in 0..MAX_EXE_TIME {
+        cpu.instructions.push_front(Vec::new());
+    }
 
-    
-    dbg!(instructions);
+    for line in input_lines {
+        // dbg!(&line);
+        if let Some(instruction) = parse_line(&line) {
+            if let Some(vec) = cpu.instructions.get_mut(instruction.get_execution_time() - 1) {
+                println!("Pushing instruction {:?} to {}", &instruction, instruction.get_execution_time() - 1);
+                vec.push(instruction);
+            }
+        }
+        // dbg!(&cpu);
+        cpu.Cycle();
+    }
+
+    for _ in 0..(MAX_EXE_TIME - 1) {
+        cpu.Cycle();
+    }
     Ok(())
 }
 
