@@ -31,10 +31,10 @@ struct Cpu {
 impl Cpu {
     fn Execute(&mut self, instruction: Instruction) {
         match instruction {
-            Instruction::noop => {println!("Noop");},
+            Instruction::noop => {print!("Noop ");},
             Instruction::addx(v) => {
                 self.x += v;
-                println!("Addx {}", &v);
+                print!("Addx {} ", &v);
             },
         }
     }
@@ -42,7 +42,7 @@ impl Cpu {
     fn Cycle(&mut self) {
         if let Some(instructions) = self.instructions.pop_front() {
             instructions.into_iter().for_each(|i| self.Execute(i));
-            self.instructions.push_back(Vec::new());
+            // self.instructions.push_back(Vec::new());
         }
     }
 }
@@ -100,7 +100,7 @@ fn main() -> Result<(), io::Error>{
     let input_lines = read_file()?;
     let input_lines = input_lines.iter();
     let mut signal_strengths = Vec::new();
-    let mut cycle = 1;
+    let mut cycle: i32 = 1;
 
     let mut cpu = Cpu {
         instructions: VecDeque::with_capacity(MAX_EXE_TIME),
@@ -111,21 +111,29 @@ fn main() -> Result<(), io::Error>{
     }
 
     for line in input_lines {
-        signal_strengths.push(cpu.x * cycle);
         println!("Cycle {}, x {}, str {:?}", cycle, cpu.x, signal_strengths.last());
-        // dbg!(&line);
-        cpu.Cycle();
-        cycle += 1;
+        // cpu.Cycle();
+        cpu.instructions.push_back(Vec::new());
         if let Some(instruction) = parse_line(&line) {
-            if let Some(vec) = cpu.instructions.get_mut(instruction.get_execution_time() - 1) {
-                // println!("Pushing instruction {:?} to {}", &instruction, instruction.get_execution_time() - 1);
+            let cycle: usize = cycle.try_into().unwrap();
+            if let Some(vec) = cpu.instructions.get_mut(instruction.get_execution_time() - 1 + cycle - 1) {
                 vec.push(instruction);
+            } else {
+                panic!("CACA");
             }
         }
+        cycle += 1;
     }
+    dbg!(&cpu);
 
-    for _ in 0..(MAX_EXE_TIME - 1) {
+    cycle = 1;
+    while !cpu.instructions.is_empty() {
+        print!("Cycle: {}. ", cycle);
         cpu.Cycle();
+        print!("x: {}", cpu.x);
+        signal_strengths.push(cpu.x * cycle);
+        cycle += 1;        
+        println!("");
     }
 
     let sum: i32 = signal_strengths.iter()
@@ -134,7 +142,7 @@ fn main() -> Result<(), io::Error>{
     .map(|(_, &val)| val)
     .sum();
 
-    dbg!(&cpu);
+    // dbg!(&cpu);
     // dbg!(&signal_strengths);
     println!("Sum {}", sum);
     Ok(())
