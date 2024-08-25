@@ -104,7 +104,7 @@ fn main() -> Result<(), io::Error>{
 
     let mut cpu = Cpu {
         instructions: VecDeque::with_capacity(MAX_EXE_TIME),
-        registers: HashMap::from([("x".to_string(), 0)]),
+        registers: HashMap::from([("x".to_string(), 1)]),
     };
     for _ in 0..MAX_EXE_TIME {
         cpu.instructions.push_front(Vec::new());
@@ -118,13 +118,15 @@ fn main() -> Result<(), io::Error>{
                 vec.push(instruction);
             }
         }
-        // dbg!(&cpu);
         cpu.Cycle();
+        // dbg!(&cpu);
     }
 
     for _ in 0..(MAX_EXE_TIME - 1) {
         cpu.Cycle();
     }
+
+    dbg!(&cpu);
     Ok(())
 }
 
