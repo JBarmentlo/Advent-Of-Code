@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::path::Path;
 
-#[derive(Debug)]
+#[derive(Hash, Eq, PartialEq, Debug)]
 enum Instruction {
     noop,
     addx(i32),
@@ -13,6 +13,20 @@ enum Instruction {
 struct Cpu {
     instructions: VecDeque<Vec<i32>>,
     registers: HashMap<String, i32>,
+}
+
+impl Cpu {
+    fn Execute(mut self, instruction: Instruction) {
+        match instruction {
+            Instruction::noop => {},
+            Instruction::addx(v) => {
+                self.registers
+                .entry("x".to_string())
+                .and_modify(|x| *x += v)
+                .or_insert(v);
+            },
+        }
+    }
 }
 
 fn parse_line(line: &String) -> Option<Instruction> {
@@ -72,6 +86,13 @@ fn main() -> Result<(), io::Error>{
             instructions.push(instruction);
         }
     }
+
+    let mut cpu = Cpu {
+        instructions: VecDeque::from([vec![], vec![]]),
+        registers: HashMap::from([("x".to_string(), 0)]),
+    };
+
+    
     dbg!(instructions);
     Ok(())
 }
