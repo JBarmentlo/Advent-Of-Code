@@ -24,7 +24,8 @@ impl Instruction {
 #[derive(Debug)]
 struct Cpu {
     instructions: VecDeque<Vec<Instruction>>,
-    registers: HashMap<String, i32>,
+    // registers: HashMap<String, i32>,
+    x: i32,
 }
 
 impl Cpu {
@@ -32,11 +33,8 @@ impl Cpu {
         match instruction {
             Instruction::noop => {println!("Noop");},
             Instruction::addx(v) => {
-                let new_val = self.registers
-                .entry("x".to_string())
-                .and_modify(|x| *x += v)
-                .or_insert(v);
-                println!("Addx {}. X: {}", &v, new_val);
+                self.x += v;
+                println!("Addx {}", &v);
             },
         }
     }
@@ -101,32 +99,43 @@ fn read_file() -> Result<Vec<String>, io::Error>  {
 fn main() -> Result<(), io::Error>{
     let input_lines = read_file()?;
     let input_lines = input_lines.iter();
+    let mut signal_strengths = Vec::new();
+    let mut cycle = 1;
 
     let mut cpu = Cpu {
         instructions: VecDeque::with_capacity(MAX_EXE_TIME),
-        registers: HashMap::from([("x".to_string(), 1)]),
+        x: 1
     };
     for _ in 0..MAX_EXE_TIME {
         cpu.instructions.push_front(Vec::new());
     }
 
     for line in input_lines {
+        signal_strengths.push(cpu.x * cycle);
+        println!("Cycle {}, x {}, str {:?}", cycle, cpu.x, signal_strengths.last());
         // dbg!(&line);
+        cpu.Cycle();
+        cycle += 1;
         if let Some(instruction) = parse_line(&line) {
             if let Some(vec) = cpu.instructions.get_mut(instruction.get_execution_time() - 1) {
-                println!("Pushing instruction {:?} to {}", &instruction, instruction.get_execution_time() - 1);
+                // println!("Pushing instruction {:?} to {}", &instruction, instruction.get_execution_time() - 1);
                 vec.push(instruction);
             }
         }
-        cpu.Cycle();
-        // dbg!(&cpu);
     }
 
     for _ in 0..(MAX_EXE_TIME - 1) {
         cpu.Cycle();
     }
 
+    let sum: i32 = signal_strengths.iter()
+    .enumerate()
+    .filter(|(i, _)| (i + 1) % 40 == 20)
+    .map(|(_, &val)| val)
+    .sum();
+
     dbg!(&cpu);
+    // dbg!(&signal_strengths);
+    println!("Sum {}", sum);
     Ok(())
 }
-
