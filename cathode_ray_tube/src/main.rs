@@ -20,9 +20,7 @@ impl Instruction {
 
 #[derive(Debug)]
 struct Cpu {
-    queue: VecDeque::<Instruction>,
-    instruction: Option<Instruction>,
-    waiting_time: Option<usize>,
+    strengths: Vec<i32>,
     x: i32,
     cycle: i32,
 }
@@ -30,57 +28,28 @@ struct Cpu {
 impl Cpu {
     fn execute(&mut self, instruction: Instruction) {
         match instruction {
-            Instruction::noop => {println!("Noop ");},
+            Instruction::noop => {
+                self.tick();
+                // println!("Noop ");
+            },
             Instruction::addx(v) => {
+                self.tick();
+                self.tick();
                 self.x += v;
-                println!("Addx {} ", &v);
+                // println!("Addx {} ", &v);
             },
         }
     }
 
-    fn cycle(&mut self) {
-        if let None = self.instruction {
-            self.prime();
-        }
-        if let Some(instruction) = self.instruction {
-            match self.waiting_time {
-                Some(0) => {
-                    panic!("This should never happen");
-                }
-                Some(1) => {
-                    self.execute(instruction);
-                    self.instruction = None;
-                    self.waiting_time = None;
-                },
-                Some(v) => {
-                    self.waiting_time = Some(v - 1);
-                },
-                None => {
-                    println!("Cycling THE VOID");
-                }
-            }
-        }
+    fn tick(&mut self) {
         self.cycle += 1;
+        self.strengths.push(self.x * self.cycle);
+
+        // if self.cycle % 40 == 20 {
+            // self.strengths.push(self.x * self.cycle)
+        // }
     }
 
-    fn get_signal_strength(&self) -> i32 {
-        self.x * self.cycle
-    }
-
-    fn prime(&mut self) {
-        match self.instruction {
-            None => {
-                self.instruction = self.queue.pop_front();
-                if let Some(instruction) = self.instruction {
-                    println!("Starting {:?}", instruction);
-                    self.waiting_time = Some(instruction.get_execution_time());
-                }
-            },
-            
-            Some(_) => {
-            },
-        }
-    }
 }
 
 fn parse_line(line: &String) -> Option<Instruction> {
@@ -120,8 +89,8 @@ fn parse_line(line: &String) -> Option<Instruction> {
 }
 
 fn read_file() -> Result<Vec<String>, io::Error>  {
-    let filename = "test_data_2.txt";
-    // let filename = "test_data.txt";
+    // let filename = "test_data_2.txt";
+    let filename = "test_data.txt";
     // let filename = "data.txt";
     let path = Path::new(filename);
     let file = File::open(path)?;
@@ -137,42 +106,21 @@ fn read_file() -> Result<Vec<String>, io::Error>  {
 fn main() -> Result<(), io::Error>{
     let input_lines = read_file()?;
     let input_lines = input_lines.iter();
-    let instructions: VecDeque::<Instruction> = input_lines.filter_map(|l| parse_line(l)).collect();
-
-    let mut signal_strengths: Vec<i32> = Vec::new();
-
+    // let instructions: VecDeque::<Instruction> = input_lines.filter_map(|l| parse_line(l)).collect();
+    
     let mut cpu = Cpu {
-        queue: instructions,
-        instruction: None,
-        waiting_time: None,
+        strengths: Vec::new(),
         x: 1,
-        cycle: 1,
+        cycle: 0,
     };
-    // cpu.prime();
-    // dbg!(&cpu);
+    input_lines.filter_map(|l| parse_line(l)).for_each(|i| cpu.execute(i));
 
-    while !cpu.queue.is_empty() {
-        println!("Start Cycle {}", cpu.cycle);
-        cpu.cycle();
-        signal_strengths.push(cpu.get_signal_strength());
-        println!("x {}, stren {:?}", cpu.x, cpu.get_signal_strength());
-        println!("");
-    }
-    while let Some(_) = cpu.instruction {
-        println!("Start Cycle {}", cpu.cycle);
-        cpu.cycle();
-        signal_strengths.push(cpu.get_signal_strength());
-        println!("x {}, stren {:?}", cpu.x, cpu.get_signal_strength());
-        println!("");
-    }
-
-
-    let signal_strengths: Vec<i32> = signal_strengths.iter()
+    let signal_strengths: Vec<i32> = cpu.strengths.iter()
     .enumerate()
     .filter(|(i, _)| (i + 1) % 40 == 20)
     .map(|(_, &val)| val)
     .collect();
-    dbg!(&signal_strengths);
+    // dbg!(&signal_strengths);
     let sum: i32 = signal_strengths.into_iter().sum();
     println!("{}", sum);
     Ok(())
